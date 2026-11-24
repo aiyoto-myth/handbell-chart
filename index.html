@@ -1,0 +1,1036 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Handbell Chart: bell assignments for the ringers you have</title>
+<meta name="description" content="Free handbell assignment tool. Pick the bells your piece uses, list your ringers, get the table chart. Nine ringers instead of eleven, or someone out on Sunday? It re-splits the bells in one tap.">
+<link rel="canonical" href="https://samsbench.com/handbell-chart/">
+<meta property="og:title" content="Handbell Chart: who rings which bells">
+<meta property="og:description" content="Bell assignments for the ringers you actually have. Free, no sign-up.">
+<meta property="og:url" content="https://samsbench.com/handbell-chart/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Fraunces:opsz,wght@9..144,600;9..144,800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#f6efe2; --paper2:#efe5d2; --ink:#1e1912; --ink2:#4a3f31; --line:#d8c9ad;
+  --felt:#1c2540; --felt2:#283357; --bronze:#d6a24a; --bronze2:#b07d2a; --bronzeInk:#2a1d08;
+  --sharp:#3a2c14; --red:#b4232a; --ok:#2f6b3a; --focus:#1d4ed8;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font:17px/1.5 "Atkinson Hyperlegible",system-ui,sans-serif}
+h1,h2,h3{font-family:Fraunces,Georgia,serif;line-height:1.15;margin:0}
+h1{font-weight:800;font-size:clamp(30px,5.2vw,52px);letter-spacing:-.01em}
+h2{font-weight:600;font-size:clamp(22px,3vw,28px)}
+a{color:inherit}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.wrap{max-width:1120px;margin:0 auto;padding:0 16px}
+.top{display:flex;align-items:center;gap:10px;padding:14px 0}
+.top b{font-family:Fraunces,Georgia,serif;font-size:20px}
+.top .sp{flex:1}
+.top a.pro{font-weight:700;text-decoration:none;border:2px solid var(--ink);border-radius:999px;padding:4px 14px}
+.hero{padding:18px 0 8px;display:grid;grid-template-columns:1.25fr 1fr;gap:28px;align-items:end}
+.hero p{font-size:19px;margin:12px 0 0;max-width:36em}
+.hero .three{list-style:none;margin:0;padding:0;border-left:4px solid var(--bronze2)}
+.hero .three li{padding:6px 0 6px 14px}
+.hero .three b{display:block}
+.step{margin-top:26px;background:#fffaf1;border:1px solid var(--line);border-radius:14px;padding:18px}
+.step > header{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px;margin-bottom:10px}
+.step > header .n{font-family:Fraunces,Georgia,serif;font-weight:800;font-size:28px;color:var(--bronze2);min-width:22px}
+.step > header p{margin:0;flex-basis:100%;color:var(--ink2)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn{border:2px solid var(--ink);background:var(--ink);color:var(--paper);border-radius:10px;padding:8px 14px;font-weight:700}
+.btn.ghost{background:transparent;color:var(--ink)}
+.btn.small{padding:4px 10px;border-radius:8px;font-size:15px}
+.btn[aria-pressed=true]{background:var(--bronze);border-color:var(--bronze2);color:var(--bronzeInk)}
+.btn:disabled{opacity:.45;cursor:default}
+input[type=text],input[type=email]{border:2px solid var(--line);background:#fff;border-radius:10px;padding:8px 10px;min-width:0}
+input[type=text]:focus,input[type=email]:focus{border-color:var(--ink)}
+.title-in{font-family:Fraunces,Georgia,serif;font-size:20px;font-weight:600;flex:1 1 260px}
+.stat{font-weight:700}
+.note{background:var(--paper2);border-radius:10px;padding:10px 12px;margin-top:10px}
+.note.warn{background:#f8e2c6}
+.example{display:inline-block;background:var(--bronze);color:var(--bronzeInk);font-weight:700;border-radius:6px;padding:1px 8px;font-size:14px}
+
+/* bell picker: a keyboard of bells, naturals in front, sharps/flats behind */
+.kbd-scroll{overflow-x:auto;padding:6px 0 4px;margin-top:8px;-webkit-overflow-scrolling:touch}
+.kbd{position:relative;height:118px}
+.kbd button{position:absolute;border-radius:8px;font-size:12px;font-weight:700;padding:0;display:flex;align-items:flex-end;justify-content:center;padding-bottom:6px}
+.kbd .nat{top:34px;width:34px;height:82px;background:#fff;border:2px solid var(--line);color:var(--ink2)}
+.kbd .acc{top:0;width:28px;height:58px;background:#e8dcc4;border:2px solid #c9b791;color:var(--ink2);z-index:2;font-size:11px}
+.kbd .on.nat{background:var(--bronze);border-color:var(--bronze2);color:var(--bronzeInk)}
+.kbd .on.acc{background:var(--sharp);border-color:var(--sharp);color:#f3d9a5}
+.kbd .oct{position:absolute;top:118px;font-size:12px;color:var(--ink2)}
+
+/* ringers */
+.ringers{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(300px,100%),1fr));gap:8px;margin-top:10px}
+.rg{display:flex;align-items:center;gap:6px;background:#fff;border:2px solid var(--line);border-radius:10px;padding:4px 6px}
+.rg .dot{width:14px;height:14px;border-radius:50%;flex:none}
+.rg .pos{font-weight:700;min-width:22px;text-align:right}
+.rg .usual{font-size:14px;font-weight:700;white-space:nowrap;color:var(--ink2)}
+.rg button.lock[aria-pressed=true]{color:var(--ink);background:var(--bronze);border-radius:6px}
+.rg.locked{border-color:var(--bronze2)}
+.rg input{border:0;flex:1;min-width:60px;padding:6px 4px;background:transparent}
+.rg button{border:0;background:transparent;font-size:16px;padding:4px 6px;color:var(--ink2)}
+.stepper{display:inline-flex;align-items:center;border:2px solid var(--ink);border-radius:10px;overflow:hidden}
+.stepper button{border:0;background:var(--ink);color:var(--paper);width:40px;height:40px;font-size:22px;font-weight:700}
+.stepper output{min-width:54px;text-align:center;font-weight:700;font-size:20px}
+
+/* the table chart */
+.table-scroll{overflow-x:auto;margin-top:12px;border-radius:14px;-webkit-overflow-scrolling:touch}
+.felt{position:relative;background:var(--felt);border-radius:14px;padding:14px 14px 18px}
+.felt .grid{position:relative}
+.bell{position:absolute;border-radius:50% 50% 46% 46%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;border:0;padding:0}
+.bell.nat{background:radial-gradient(circle at 35% 30%,#f3cf83,var(--bronze) 55%,var(--bronze2));color:var(--bronzeInk)}
+.bell.acc{background:radial-gradient(circle at 35% 30%,#8a6a35,#4b3716 70%);color:#f8e3b4;font-size:11px}
+.bell .ring{position:absolute;inset:-5px;border-radius:50%;border:4px solid var(--c,#999)}
+.bell.moved .ring{border-style:dashed}
+.bell.moved::after{content:"";position:absolute;top:-6px;right:-6px;width:12px;height:12px;border-radius:50%;background:var(--red);border:2px solid var(--felt)}
+.bell.nobody .ring{border-color:var(--red)}
+.zone{position:absolute;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#fff;overflow:hidden;white-space:nowrap;padding:0 4px}
+.zone.out{background:repeating-linear-gradient(45deg,#4b5268,#4b5268 6px,#3c4257 6px,#3c4257 12px)!important;color:#e9ecf5}
+.zone small{font-weight:400;margin-left:4px;opacity:1}
+.legend{color:#f1ead9;font-size:14px;margin-top:8px}
+.mode{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+
+.who{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(250px,100%),1fr));gap:8px;margin-top:12px}
+.who > div{background:#fff;border:1px solid var(--line);border-left:8px solid var(--c);border-radius:10px;padding:8px 10px}
+.who b{display:block}
+.who .pos{font-size:14px;color:var(--ink2);font-weight:700}
+.who .bells{font-size:18px;font-weight:700;letter-spacing:.02em}
+.who .warn{color:var(--red);font-size:15px}
+.who .out{opacity:.6;text-decoration:line-through}
+
+.menu{position:fixed;z-index:20;background:#fff;border:2px solid var(--ink);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.25);padding:6px;max-height:60vh;overflow:auto;min-width:200px;max-width:calc(100vw - 16px);overflow-wrap:anywhere}
+.menu p{margin:4px 8px 6px;font-weight:700}
+.menu button{display:flex;gap:8px;align-items:center;width:100%;border:0;background:transparent;padding:8px;border-radius:8px;text-align:left}
+.menu button:hover,.menu button:focus{background:var(--paper2)}
+.menu .dot{width:14px;height:14px;border-radius:50%}
+
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.chip{border:2px solid var(--ink);background:#fff;border-radius:999px;padding:5px 12px;font-weight:700}
+.chip[aria-pressed=true]{background:var(--red);border-color:var(--red);color:#fff}
+.seg{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.moves{margin:10px 0 0;padding:0;list-style:none}
+.moves li{padding:6px 0;border-bottom:1px dashed var(--line)}
+.moves b{font-size:18px}
+
+.pieces{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.pieces button{border:2px solid var(--line);background:#fff;border-radius:10px;padding:6px 10px;font-weight:700;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pieces button[aria-current=true]{border-color:var(--ink);background:var(--ink);color:var(--paper)}
+
+#proSec{margin-top:34px;background:var(--felt);color:#f4ecdc;border-radius:16px;padding:22px}
+#proSec h2{color:#fff}
+#proSec .price{font-family:Fraunces,Georgia,serif;font-size:44px;font-weight:800;color:var(--bronze)}
+#proSec ul{padding-left:20px}
+#proSec .btn{background:var(--bronze);border-color:var(--bronze);color:var(--bronzeInk)}
+#proSec .btn.ghost{background:transparent;color:#f4ecdc;border-color:#f4ecdc}
+#proSec input{border-color:#56608a}
+#proSec .cols{display:grid;grid-template-columns:1.2fr 1fr;gap:24px}
+#proSec .ok{color:#a7e3b1;font-weight:700}
+#proSec .err{color:#ffb4b4;font-weight:700}
+.how{margin-top:34px}
+.how h3{font-size:20px;margin-top:18px}
+.how p,.how li{max-width:48em}
+footer{margin:40px 0 30px;color:var(--ink2);font-size:15px}
+#toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:10px;font-weight:700;z-index:30;display:none;max-width:92vw}
+#shareBar{background:var(--bronze);color:var(--bronzeInk);font-weight:700;padding:10px 0}
+#shareBar .wrap{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+#printArea{display:none}
+
+@media (max-width:760px){
+  .hero{grid-template-columns:1fr}
+  #proSec .cols{grid-template-columns:1fr}
+  body{font-size:16px}
+}
+@media print{
+  @page{size:landscape;margin:10mm}
+  body{background:#fff}
+  body > *:not(#printArea){display:none!important}
+  #printArea{display:block!important;color:#000;font-family:"Atkinson Hyperlegible",Arial,sans-serif}
+  .pa-head{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid #000;margin-bottom:8px}
+  .pa-head h1{font-size:22pt}
+  .pa-strip{display:flex;flex-wrap:wrap;gap:0;margin:10mm 0;break-inside:avoid}
+  .pa-col{min-height:45mm}
+  .pa-col{border:1.5px solid #000;margin:-0.75px;padding:4px 6px 6px;min-width:0;break-inside:avoid}
+  .pa-col h3{font-family:Arial,sans-serif;font-size:12pt;margin:0 0 3px;border-bottom:5px solid var(--c);padding-bottom:2px}
+  .pa-col h3 i{font-style:normal;display:block;font-size:16pt}
+  .pa-col .b{font-size:20pt;font-weight:700;line-height:1.25}
+  .pa-col .b span{white-space:nowrap}
+  .pa-col.out h3{text-decoration:line-through}
+  .pa-col .mv{font-size:10pt;font-weight:700}
+  .pa-cards{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6mm}
+  .pa-card{border:1.5px dashed #000;padding:5mm;break-inside:avoid;min-height:45mm}
+  .pa-card h2{font-family:Arial,sans-serif;font-size:18pt;border-bottom:5px solid var(--c)}
+  .pa-card .t{font-size:10pt}
+  .pa-card .b{font-size:20pt;font-weight:700;margin-top:3mm}
+  .pa-card table{border-collapse:collapse;width:100%;margin-top:2mm;font-size:12pt}
+  .pa-card td{border-top:1px solid #999;padding:1.5mm 1mm;vertical-align:top}
+  .pa-card td.b2{font-weight:700}
+  .pa-foot{font-size:9pt;margin-top:6mm}
+  .pa-page{break-after:page}
+  .pa-slip{border:2px solid #000;padding:5mm;margin-bottom:5mm;break-inside:avoid}
+  .pa-slip li{font-size:14pt;margin:1.5mm 0}
+}
+</style>
+</head>
+<body>
+<div id="shareBar" hidden><div class="wrap"><span id="shareMsg">This chart was shared with you. Your own chart is safe.</span><button class="btn small" id="btnKeepShared">Make this my chart</button><button class="btn small ghost" id="btnBackMine">Back to mine</button></div></div>
+<div class="wrap">
+  <div class="top">
+    <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3c-1.4 0-2.4 1-2.4 2.3v2.1C9.4 8.6 7 12.3 7 16.6V22l-2.4 3h22.8L25 22v-5.4c0-4.3-2.4-8-6.6-9.2V5.3C18.4 4 17.4 3 16 3z" fill="#b07d2a"/><circle cx="16" cy="28" r="2.6" fill="#1e1912"/></svg>
+    <b>Handbell Chart</b><span class="sp"></span><a class="pro" href="#proSec">Pro</a>
+  </div>
+  <section class="hero">
+    <div>
+      <h1>Who rings which bells, for the ringers you actually have.</h1>
+      <p>Set up your choir once. For each piece, mark the bells it uses and get the table chart. Works for handchimes too. Free, nothing to install, no sign-up.</p>
+    </div>
+    <ul class="three">
+      <li><b>Nine ringers, not eleven?</b>It drops the top position first, then joins the bass, and keeps the middle in standard pairs.</li>
+      <li><b>Someone out on Sunday?</b>Mark them out. The ringers next to them pick up their bells, and you print a change slip.</li>
+      <li><b>Print it.</b>A chart for the table and a card for every ringer.</li>
+    </ul>
+  </section>
+
+  <main>
+    <section class="step" id="sChoir" aria-labelledby="hChoir">
+      <header><span class="n">1</span><h2 id="hChoir">Your choir</h2>
+        <p>Your bell set and your ringers, bass end first. Everyone gets a usual position that stays the same from piece to piece.</p></header>
+      <p id="exNote" class="note" hidden><span class="example">Example</span> Three octaves, nine ringers, a piece in F, so you can see a chart right away. Change anything to make it yours.</p>
+      <div class="row">
+        <span>Bell set:</span>
+        <button class="btn ghost small" data-set="67,91">2 octaves G4–G6</button>
+        <button class="btn ghost small" data-set="60,96">3 octaves C4–C7</button>
+        <button class="btn ghost small" data-set="55,103">4 octaves G3–G7</button>
+        <button class="btn ghost small" data-set="48,108">5 octaves C3–C8</button>
+        <label>Other: <select id="setLo" aria-label="Lowest bell"></select> to <select id="setHi" aria-label="Highest bell"></select></label>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <span>Ringers:</span>
+        <div class="stepper" role="group" aria-label="Number of ringers"><button id="rMinus" aria-label="One fewer ringer">−</button><output id="rCount">0</output><button id="rPlus" aria-label="One more ringer">+</button></div>
+        <span id="stdNote"></span>
+      </div>
+      <div class="ringers" id="ringers"></div>
+      <p style="margin:10px 0 0">🔒 = keep this ringer on their usual bells, even when you even out a piece.</p>
+    </section>
+
+    <section class="step" id="sPiece" aria-labelledby="hPiece">
+      <div class="pieces" id="pieces"></div>
+      <header><span class="n">2</span><h2 id="hPiece">This piece</h2>
+        <p>Copy the bells from the "handbells used" chart on the first page of the music. Click a bell to add or remove it.</p></header>
+      <div class="row">
+        <input type="text" class="title-in" id="title" placeholder="Name of the piece" aria-label="Name of the piece">
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn ghost small" id="btnAllNat">All naturals in my set</button>
+        <span>Add the key's flats/sharps:</span>
+        <button class="btn ghost small" data-key="70">B♭</button>
+        <button class="btn ghost small" data-key="63">E♭</button>
+        <button class="btn ghost small" data-key="68">A♭</button>
+        <button class="btn ghost small" data-key="66">F♯</button>
+        <button class="btn ghost small" data-key="61">C♯</button>
+        <button class="btn ghost small" id="btnClear">Clear</button>
+      </div>
+      <div class="kbd-scroll" id="kbdScroll"><div class="kbd" id="kbd"></div></div>
+      <div class="row" style="margin-top:14px"><span id="bellStat" class="stat"></span></div>
+      <div class="mode" role="group" aria-label="How to assign this piece">
+        <button class="btn ghost small" data-mode="usual">Usual positions</button>
+        <button class="btn ghost small" data-mode="even">Even out for this piece</button>
+      </div>
+      <p id="modeNote" style="margin:8px 0 0"></p>
+    </section>
+
+    <section class="step" id="sChart" aria-labelledby="hChart">
+      <header><span class="n">3</span><h2 id="hChart">The table</h2>
+        <p id="chartHint">Click any bell to give it to someone else for this piece.</p></header>
+      <div id="outBanner" class="note warn" hidden></div>
+      <div class="table-scroll"><div class="felt" id="felt"><div class="grid" id="grid"></div><div class="legend" id="legend"></div></div></div>
+      <div class="who" id="who"></div>
+      <div class="row" style="margin-top:14px">
+        <button class="btn" id="btnPrintChart">Print table chart</button>
+        <button class="btn" id="btnPrintCards">Print ringer cards</button>
+        <button class="btn ghost" id="btnCopy">Copy as text</button>
+        <button class="btn ghost" id="btnShare">Share link</button>
+        <button class="btn ghost" id="btnReset" hidden>Undo my changes to this piece</button>
+      </div>
+      <div id="explain" class="note" hidden></div>
+    </section>
+
+    <section class="step" id="sOut" aria-labelledby="hOut">
+      <header><span class="n">4</span><h2 id="hOut">Someone out this week?</h2>
+        <p>Click who is missing. The chart above shows this week's table; your usual chart is kept.</p></header>
+      <div class="chips" id="outChips"></div>
+      <div id="outTools" hidden>
+        <div class="seg" role="group" aria-label="How to cover">
+          <button class="btn ghost small" data-how="near">Neighbors cover</button>
+          <button class="btn ghost small" data-how="octave">High bells to the same note an octave down</button>
+        </div>
+        <p id="howNote" style="margin:8px 0 0"></p>
+        <ul class="moves" id="moves"></ul>
+        <div class="row" style="margin-top:12px">
+          <button class="btn" id="btnPrintSlip">Print change slip</button>
+          <button class="btn ghost" id="btnAllBack">Everyone's back</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="proSec" aria-labelledby="hPro">
+      <div class="cols">
+        <div>
+          <h2 id="hPro">Pro: the whole concert, not one piece</h2>
+          <p><span class="price" id="proPrice">$9</span> once. No subscription.</p>
+          <ul>
+            <li>Keep every piece in your service or concert list (free keeps one).</li>
+            <li>One sheet per ringer: their bells in every piece, ready for the binder.</li>
+            <li>Mark someone out once and get one change slip covering every piece.</li>
+          </ul>
+          <div id="proState"></div>
+        </div>
+        <div id="proBuy">
+          <p><a class="btn" id="buyLink" data-buy href="#" target="_top">Get Pro for $9</a></p>
+          <p style="margin-top:4px">Secure checkout by Whop, a payment company. Card, Apple Pay or PayPal, and you get a receipt for your church office.</p>
+          <label for="proKey" id="proLbl"><b>Already bought? Enter the email you paid with, or a gift code.</b></label>
+          <div class="row" style="margin-top:6px"><input type="email" id="proKey" placeholder="you@example.com or gift code" style="flex:1 1 220px"><button class="btn ghost" id="btnUnlock">Unlock Pro</button></div>
+          <p id="proMsg" aria-live="polite"></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="how" aria-labelledby="hHow">
+      <h2 id="hHow">How it assigns the bells</h2>
+      <h3>With the standard number of ringers, you get the standard positions</h3>
+      <p>Naturals go in pairs: C4 D4, E4 F4, G4 A4, B4 C5 and so on up to B6 C7. Three octaves make eleven positions, as in the Handbell Musicians of America beginner curriculum. Each sharp or flat goes with the natural just below it: C♯ with C, E♭ with D, F♯ with F, A♭ with G, B♭ with A. Some directors give B♭ to the B ringer instead; click the bell to move it.</p>
+      <h3>With fewer ringers, the light ends join first</h3>
+      <p>The same curriculum says the bass bells have less rhythmic variety, the middle (battery) is the busy core, C6 to C7 carries the melody, and G6 to C7 rings a little less often. So with fewer ringers the top position goes first, then the bass bells join up, and the middle stays in standard pairs as long as it can.</p>
+      <h3>Positions stay put from piece to piece</h3>
+      <p>Usual positions come from your whole set, so Mary is on G4 A4 in every piece. If a piece only uses part of the set, choose "Even out for this piece". Ringers marked 🔒 keep their usual bells either way.</p>
+      <h3>When someone is out</h3>
+      <ul>
+        <li><b>Neighbors cover:</b> the ringers on either side take the missing bells, lower half to the one below, upper half to the one above.</li>
+        <li><b>High bells to the same note an octave down:</b> a missing treble bell (C6 and up) goes to someone who already rings that note an octave lower, like B6 to the B5 ringer. This is from a Handbell Musicians of America class handout, which says it works best when those ringers can ring four-in-hand. Lower bells still go to the neighbors.</li>
+      </ul>
+      <h3>What it can't see</h3>
+      <p>It doesn't read your music, so it can't tell when two of one ringer's bells sound together. Look over the hard passages and move a bell if needed. Four bells is a normal load: two in hand, two on the table. More means more picking up and putting down.</p>
+    </section>
+
+    <footer>
+      Handbell Chart by Sam's Bench. Your choir's names stay in this browser; nothing is uploaded. Use "Save a backup" to keep a copy.
+      <button class="btn ghost small" id="btnBackup">Save a backup</button> <button class="btn ghost small" id="btnRestore">Restore a backup</button>
+    </footer>
+  </main>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+<div id="printArea"></div>
+
+<script>
+/*CORE-START*/
+var HB = (function(){
+  var LETTERS = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  var FLATS   = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+  var MIXED   = ['C','C♯','D','E♭','E','F','F♯','G','A♭','A','B♭','B'];   // the usual spellings: C#, Eb, F#, Ab, Bb
+  var STEP    = [0,0,1,1,2,3,3,4,4,5,5,6];           // diatonic step of each pitch class (accidentals share the natural below)
+  function isNat(m){ return LETTERS[((m%12)+12)%12].length === 1; }
+  function octave(m){ return Math.floor(m/12) - 1; }
+  function name(m, flats){ var pc = ((m%12)+12)%12; return (flats ? FLATS : LETTERS)[pc] + octave(m); }
+  function label(m){ return MIXED[((m%12)+12)%12] + octave(m); }
+  function both(m){ return isNat(m) ? name(m) : name(m) + '/' + name(m, true); }
+  function letter(m){ return LETTERS[((m%12)+12)%12].charAt(0); }   // natural letter; for accidentals, the natural below
+  function parse(s){
+    var x = /^([A-Ga-g])([#b♯♭]?)(-?\d)$/.exec(String(s).trim()); if(!x) return null;
+    var pc = {C:0,D:2,E:4,F:5,G:7,A:9,B:11}[x[1].toUpperCase()];
+    if(x[2]==='#'||x[2]==='♯') pc++; if(x[2]==='b'||x[2]==='♭') pc--;
+    return (parseInt(x[3],10)+1)*12 + pc;
+  }
+  /* D1: standard positions pair adjacent naturals on a grid anchored at C4D4, E4F4, G4A4, B4C5 ... B6C7.
+     A sharp/flat belongs to the position of the natural just below it (C# with C, Eb with D, F# with F, Ab with G, Bb with A). */
+  function diat(m){ return (octave(m))*7 + STEP[((m%12)+12)%12]; }
+  function unit(m){ return Math.floor((diat(m) - 28) / 2); }   // 28 = diat(C4)
+  function range(lo, hi){ var r = []; for(var m = lo; m <= hi; m++) r.push(m); return r; }
+  function naturals(lo, hi){ return range(lo, hi).filter(isNat); }
+  function sorted(bells){ var seen = {}, r = []; bells.forEach(function(m){ m = +m; if(!seen[m]){ seen[m] = 1; r.push(m); } }); return r.sort(function(a,b){ return a-b; }); }
+  function standardCount(bells){ var u = {}; sorted(bells).forEach(function(m){ u[unit(m)] = 1; }); return Object.keys(u).length; }
+
+  /* How busy a bell is, from D1 "Generalities": bass bells (C4-F4) have "less rhythmic variety"; the battery (G4-B5) is
+     "the core of the harmony" and busy; C6-C7 "generally responsible for the melody"; G6-C7 "play a little less often".
+     Below C4 and above C7 (4-5 octave sets) ring least. Sharps/flats ring less than naturals in most music. */
+  function weight(m){
+    var n = isNat(m) ? m : m - 1, w = n < 60 ? 0.45 : n < 67 ? 0.6 : n < 91 ? 1 : n <= 96 ? 0.6 : 0.35;
+    return isNat(m) ? w : w * 0.6;
+  }
+  /* Cost of one ringer's bells: work squared (so work spreads evenly), plus a penalty past 6 bells (too much picking up). */
+  function groupCost(work, count){ return work * work + Math.max(0, count - 6) * 1.5; }
+  function cutCost(a, b){            // cost of putting a split between neighbouring bells a < b
+    if(unit(a) !== unit(b)) return 0;  // between standard positions: free
+    return isNat(b) ? 0.6 : 3;         // inside a position: splitting two naturals = 0.6, tearing a sharp/flat off its natural = 3
+  }
+  function units(b){ var g = [], last = null; b.forEach(function(m){ if(last === null || unit(m) !== last){ g.push([]); last = unit(m); } g[g.length-1].push(m); }); return g; }
+  /* Split the piece's bells, low to high, into n contiguous groups at the lowest total cost.
+     n equal to the standard count gives exactly the standard positions. */
+  function plan(bells, n){
+    var b = sorted(bells), B = b.length;
+    n = Math.floor(+n) || 0;
+    if(n < 1 || B === 0) return [];
+    if(n > B) n = B;
+    var u = units(b); if(u.length === n) return u;
+    var pre = [0]; b.forEach(function(m, i){ pre.push(pre[i] + weight(m)); });
+    var INF = 1e18, dp = [], from = [];
+    for(var k = 0; k <= n; k++){ dp.push(new Array(B+1).fill(INF)); from.push(new Array(B+1).fill(-1)); }
+    dp[0][0] = 0;
+    for(k = 1; k <= n; k++){
+      for(var i = k; i <= B - (n - k); i++){
+        for(var j = k - 1; j < i; j++){
+          if(dp[k-1][j] >= INF) continue;
+          var c = dp[k-1][j] + groupCost(pre[i] - pre[j], i - j) + (j > 0 ? cutCost(b[j-1], b[j]) : 0);
+          if(c < dp[k][i] - 1e-9){ dp[k][i] = c; from[k][i] = j; }
+        }
+      }
+    }
+    var groups = [], end = B;
+    for(k = n; k >= 1; k--){ var st = from[k][end]; groups.unshift(b.slice(st, end)); end = st; }
+    return groups;
+  }
+  function work(bells){ return bells.reduce(function(s, m){ return s + weight(m); }, 0); }
+
+  /* An assignment is {bell: ringerId}. order = ringer ids low to high on the table. */
+  function fromGroups(groups, ids){ var a = {}; groups.forEach(function(g, i){ g.forEach(function(m){ a[m] = ids[i]; }); }); return a; }
+  function bellsOf(assign, id){ return sorted(Object.keys(assign).filter(function(m){ return assign[m] === id; }).map(Number)); }
+  function loads(assign){ var l = {}; Object.keys(assign).forEach(function(m){ l[assign[m]] = (l[assign[m]]||0) + 1; }); return l; }
+
+  /* home(): the choir's usual positions for its whole set lo..hi. Positions are cut on the naturals only, and each sharp/flat
+     then follows the natural just below it, so a ringer's place never depends on which accidentals a piece happens to use. */
+  function home(lo, hi, ids){
+    var a = {}, nat = naturals(lo, hi);
+    fromGroupsInto(a, plan(nat, ids.length), ids);
+    range(lo, hi).forEach(function(m){ if(!isNat(m)) a[m] = a[m-1] !== undefined ? a[m-1] : a[m+1]; });
+    Object.keys(a).forEach(function(k){ if(a[k] === undefined) delete a[k]; });
+    return a;
+  }
+  /* The choir's usual positions come from its whole bell set, so a ringer keeps the same place from piece to piece.
+     usual(): this piece's bells keep their usual ringer; a bell outside the set goes to whoever has the nearest bell. */
+  function usual(bells, home){
+    var a = {}, hb = sorted(Object.keys(home).map(Number));
+    if(!hb.length) return a;
+    sorted(bells).forEach(function(m){
+      if(home[m] !== undefined){ a[m] = home[m]; return; }
+      var best = hb[0]; hb.forEach(function(x){ if(Math.abs(x - m) < Math.abs(best - m)) best = x; });
+      a[m] = home[best];
+    });
+    return a;
+  }
+  /* balanced(): split this piece's bells evenly among the ringers, except locked ringers, who keep their usual bells.
+     Unlocked ringers between two locked ones share the bells between them, so the table order never changes. */
+  function balanced(bells, order, home, locked){
+    var b = sorted(bells), a = {}, base = usual(b, home), fixed = {};
+    order.forEach(function(id){ if(locked[id]) b.forEach(function(m){ if(base[m] === id){ a[m] = id; fixed[m] = 1; } }); });
+    var seg = [], segBells = [];
+    function flush(){
+      if(!seg.length) return;
+      if(segBells.length) fromGroupsInto(a, plan(segBells, seg.length), seg);
+      seg = []; segBells = [];
+    }
+    var free = b.filter(function(m){ return !fixed[m]; }), fi = 0;
+    order.forEach(function(id){
+      if(!locked[id]){ seg.push(id); return; }
+      var mine = b.filter(function(m){ return a[m] === id; });
+      var lim = mine.length ? mine[0] : null;
+      if(lim === null){ seg.push(id); return; }            // locked but nothing in this piece: acts like a free ringer
+      while(fi < free.length && free[fi] < lim){ segBells.push(free[fi]); fi++; }
+      flush();
+      var top = mine[mine.length-1]; while(fi < free.length && free[fi] < top){ a[free[fi]] = id; fi++; }   // gaps inside a locked span stay with that ringer
+    });
+    while(fi < free.length){ segBells.push(free[fi]); fi++; }
+    if(seg.length) flush(); else if(segBells.length){ var last = order.filter(function(id){ return locked[id]; }).pop(); segBells.forEach(function(m){ a[m] = last; }); }
+    return a;
+  }
+  function fromGroupsInto(a, groups, ids){ groups.forEach(function(g, i){ g.forEach(function(m){ a[m] = ids[i]; }); }); }
+
+  /* Someone is out. Three ways, all from the sources (D4, D5):
+     'near'   - the ringers next to them on the table split their bells (lower half down, upper half up);
+     'octave' - each bell goes to a ringer who already rings the same note an octave away (D4: B6 to the B5 ringer, C7 to the C6 ringer);
+     'fresh'  - split the whole piece again among the people who are there.
+     Returns {assign, moves:[{bell, from, to}]}. Bells nobody can take stay with from = to = absent id and are listed in moves with to: null. */
+  function cover(assign, order, absent, how){
+    var out = {}, isOut = {}; absent.forEach(function(id){ isOut[id] = 1; });
+    var here = order.filter(function(id){ return !isOut[id]; });
+    var bells = sorted(Object.keys(assign).map(Number));
+    var moves = [];
+    if(!here.length){
+      var none = {}; bells.forEach(function(m){ if(!isOut[assign[m]]) none[m] = assign[m]; });
+      return {assign:none, moves: bells.filter(function(m){ return isOut[assign[m]]; }).map(function(m){ return {bell:m, from:assign[m], to:null}; })};
+    }
+    if(how === 'fresh'){
+      var a = fromGroups(plan(bells, here.length), here);
+      bells.forEach(function(m){ if(a[m] !== assign[m]) moves.push({bell:m, from:assign[m], to:a[m]}); });
+      return {assign:a, moves:moves};
+    }
+    Object.keys(assign).forEach(function(m){ out[m] = assign[m]; });
+    var load = {}; here.forEach(function(id){ load[id] = 0; }); bells.forEach(function(m){ if(!isOut[assign[m]]) load[assign[m]]++; });
+    function nearIdx(pos, dir){ for(var p = pos + dir; p >= 0 && p < order.length; p += dir) if(!isOut[order[p]]) return order[p]; return null; }
+    function give(m, to){ moves.push({bell:m, from:assign[m], to:to}); out[m] = to; load[to]++; }
+    /* Neighbors cover: lower bells to the nearest ringer below, upper bells to the nearest above, nobody past MAXB bells.
+       Bells that don't fit go to the next-nearest ringers with room, then to whoever has the fewest. */
+    var MAXB = 6;
+    function room(r){ return r === null ? 0 : Math.max(0, MAXB - load[r]); }
+    function nearSplit(list, pos){
+      var dn = nearIdx(pos, -1), up = nearIdx(pos, 1), n = list.length;
+      var lo = Math.max(0, n - room(up)), hi = Math.min(n, room(dn));
+      var best = -1, bestC = 1e18;
+      for(var c = lo; c <= hi; c++){
+        var tear = (c > 0 && c < n) ? cutCost(list[c-1], list[c]) : 0;
+        var diff = Math.abs(((dn === null ? 0 : load[dn]) + c) - ((up === null ? 0 : load[up]) + n - c));
+        var cost = tear * 1.5 + diff;   // splitting a pair between the two neighbours is normal (D4); tearing a sharp off its natural is not
+        if(cost < bestC){ bestC = cost; best = c; }
+      }
+      var rest = [];
+      if(best >= 0){ list.forEach(function(m, i){ give(m, i < best ? dn : up); }); return; }
+      var nd = room(dn), nu = room(up);                 // not enough room next door: fill both, spread the middle further out
+      list.forEach(function(m, i){ if(i < nd) give(m, dn); else if(i >= n - nu) give(m, up); else rest.push(m); });
+      var further = [];
+      for(var k = 2; k < order.length; k++){
+        var d1 = pos - k, u1 = pos + k;
+        if(d1 >= 0 && !isOut[order[d1]] && order[d1] !== dn) further.push(order[d1]);
+        if(u1 < order.length && !isOut[order[u1]] && order[u1] !== up) further.push(order[u1]);
+      }
+      rest.forEach(function(m){
+        var to = null;
+        for(var j = 0; j < further.length; j++) if(room(further[j]) > 0){ to = further[j]; break; }
+        if(to === null) here.forEach(function(r){ if(to === null || load[r] < load[to]) to = r; });
+        give(m, to);
+      });
+    }
+    order.forEach(function(id, pos){
+      if(!isOut[id]) return;
+      var mine = bells.filter(function(m){ return assign[m] === id; });
+      if(how === 'octave'){
+        var left = [];
+        mine.forEach(function(m){
+          var best = null, bestKey = null;
+          if(m < 84){ left.push(m); return; }
+          if(!isNat(m) && mine.indexOf(m - 1) >= 0){ if(out[m - 1] !== id) give(m, out[m - 1]); else left.push(m); return; }   // a sharp/flat follows its natural
+          here.forEach(function(r){
+            var hold = bells.filter(function(x){ return out[x] === r && !isOut[r] && (x - m) % 12 === 0 && x !== m; });
+            if(!hold.length) return;
+            var dist = Math.min.apply(null, hold.map(function(x){ return Math.abs(x - m); }));
+            var key = dist * 100 + load[r];
+            if(bestKey === null || key < bestKey){ bestKey = key; best = r; }
+          });
+          if(m >= 84 && best !== null && load[best] < 5) give(m, best); else left.push(m);   // D4: only the small treble bells
+        });
+        if(left.length) nearSplit(left, pos);
+      } else nearSplit(mine, pos);
+    });
+    return {assign:out, moves:moves};
+  }
+  return {LETTERS:LETTERS, isNat:isNat, octave:octave, name:name, label:label, both:both, letter:letter, parse:parse, unit:unit, range:range, naturals:naturals,
+          sorted:sorted, standardCount:standardCount, plan:plan, fromGroups:fromGroups, bellsOf:bellsOf, loads:loads, cover:cover, cutCost:cutCost,
+          weight:weight, work:work, usual:usual, balanced:balanced, home:home};
+})();
+/*CORE-END*/
+</script>
+<script>
+(function(){
+'use strict';
+var $ = function(id){ return document.getElementById(id); };
+var SITE = 'https://samsbench.com/handbell-chart/';
+var APP_KEY = 'handbell-chart';
+var VERIFY_URL = 'https://app-bizz-api.whop.site/api/verify';
+var CHECKOUT_HOME = 'https://whop.com/checkout/ch_mdzDFcHYJPiLxIi/';      // $9 one-time, returns to SITE?bought=1#proSec
+var CHECKOUT_PLAN = 'https://whop.com/checkout/plan_bOR8zczA6D85q';       // same price; used with ?a=<affiliate>
+var PRICE = '$9';
+var GIFT = [];                                                      // SHA-256 of gift codes handed out in letters
+var KEY = 'hbc.v2', PROKEY = 'hbc.pro', FREE_PIECES = 1;
+var COLORS = ['#c0392b','#1f5fbf','#1e8449','#8e44ad','#d35400','#0e7c86','#c2185b','#5d6d1a','#283593','#8d5524','#0277bd','#6a1b9a','#2e7d32','#ad1457','#455a64','#e65100'];
+var LO = 36, HI = 108;   // picker and set selectors: C2..C8
+
+/* ---------- measurement (GoatCounter). Copied from Family Formals: the ?via code follows the visitor down the funnel. ---------- */
+var GC_CODE = 'handbellchart';
+var SRC = (function(){ try{
+  var q = new URLSearchParams(location.search), v = (q.get('via') || '').replace(/[^a-z0-9-]/g, '').slice(0, 20) || (q.get('a') ? 'aff' : '');
+  if(v){ sessionStorage.setItem('hbc.src', v); return v; }
+  return sessionStorage.getItem('hbc.src') || '';
+}catch(e){ return ''; } })();
+var FUNNEL_EV = {'tool-start':1, 'chart-made':1, 'chart-used':1, 'print-chart':1, 'print-cards':1, 'print-slip':1, 'print-season':1, 'absent-used':1, 'share':1, 'copy-text':1,
+                 'open-shared':1, 'pro-view':1, 'pro-limit':1, 'buy-click':1, 'pro-unlocked':1, 'pro-gift':1};
+var ONCE = {};
+function track(name, tries){
+  try{
+    if(!tries && SRC && FUNNEL_EV[name]) track(name + '.' + SRC);
+    if(window.goatcounter && window.goatcounter.count) window.goatcounter.count({path: name, title: name, event: true});
+    else if((tries||0) < 20) setTimeout(function(){ track(name, (tries||0) + 1); }, 500);   // count.js loads async
+  }catch(e){}
+}
+function trackOnce(name){ if(ONCE[name]) return; ONCE[name] = 1; track(name); }
+
+/* ---------- state ----------
+   S.set = the choir's bell set; S.ringers in table order (bass first), lock = keep usual bells;
+   piece.mode = 'usual' (usual positions) or 'even' (re-split this piece, locked ringers stay); piece.over = bells moved by hand. */
+function lsGet(k, d){ try{ var t = localStorage.getItem(k); return t ? JSON.parse(t) : d; }catch(e){ return d; } }
+function lsSet(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); return true; }catch(e){ return false; } }
+var seq = 1;
+function uid(p){ return p + Date.now().toString(36) + (seq++).toString(36); }
+function example(){
+  var ringers = []; for(var i = 0; i < 9; i++) ringers.push({id:'r'+(i+1), name:'', lock:false});
+  return {v:2, set:{lo:60, hi:96}, ringers:ringers, pieces:[{id:'p1', title:'', bells:HB.sorted(HB.naturals(60, 96).concat([70, 82, 94])), mode:'usual', over:{}}],
+          cur:'p1', out:{}, how:'near', example:true};
+}
+function valid(st){
+  if(!st || st.v !== 2 || !st.set || !Array.isArray(st.ringers) || !st.ringers.length || !Array.isArray(st.pieces) || !st.pieces.length) return false;
+  st.set.lo = Math.max(LO, Math.min(HI, +st.set.lo || 60)); st.set.hi = Math.max(st.set.lo, Math.min(HI, +st.set.hi || 96));
+  st.ringers = st.ringers.filter(function(r){ return r && typeof r.id === 'string' && /^[A-Za-z0-9]{1,24}$/.test(r.id); }).slice(0, 30);
+  st.ringers.forEach(function(r){ r.name = String(r.name || '').slice(0, 40); r.lock = !!r.lock; });
+  st.pieces = st.pieces.filter(function(p){ return p && typeof p.id === 'string' && /^[A-Za-z0-9]{1,24}$/.test(p.id) && Array.isArray(p.bells); });
+  st.pieces.forEach(function(p){ p.bells = HB.sorted(p.bells.map(Number).filter(function(m){ return m === Math.floor(m) && m >= LO && m <= HI; })); p.over = (p.over && typeof p.over === 'object') ? p.over : {}; p.mode = p.mode === 'even' ? 'even' : 'usual'; p.title = String(p.title || '').slice(0, 80); });
+  if(typeof st.out !== 'object' || !st.out) st.out = {};
+  if(!st.pieces.some(function(p){ return p.id === st.cur; })) st.cur = st.pieces.length ? st.pieces[0].id : '';
+  if(st.how !== 'octave') st.how = 'near';
+  return st.ringers.length > 0 && st.pieces.length > 0;
+}
+var S = lsGet(KEY, null); if(!valid(S)) S = example();
+var MINE = null;          // while looking at a shared chart, the visitor's own state waits here
+var PRO = lsGet(PROKEY, {});
+function isPro(){ return !!(PRO && (PRO.email || PRO.gift)); }
+function save(){ if(MINE) return; lsSet(KEY, S); }
+function piece(){ for(var i = 0; i < S.pieces.length; i++) if(S.pieces[i].id === S.cur) return S.pieces[i]; S.cur = S.pieces[0].id; return S.pieces[0]; }
+function ids(){ return S.ringers.map(function(r){ return r.id; }); }
+function ringer(id){ for(var i = 0; i < S.ringers.length; i++) if(S.ringers[i].id === id) return S.ringers[i]; return null; }
+function rIndex(id){ for(var i = 0; i < S.ringers.length; i++) if(S.ringers[i].id === id) return i; return -1; }
+function rName(id){ var i = rIndex(id); if(i < 0) return 'nobody'; return S.ringers[i].name.trim() || ('Ringer ' + (i+1)); }
+function rColor(id){ var i = rIndex(id); return i < 0 ? '#888' : COLORS[i % COLORS.length]; }
+function outIds(){ return ids().filter(function(id){ return S.out[id]; }); }
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function L(m){ return HB.label(m); }
+function pTitle(p){ return (p.title || '').trim() || (S.example && p.id === 'p1' ? 'Example piece in F' : 'Untitled piece'); }
+function started(){ S.example = false; trackOnce('tool-start'); }
+function homeChart(){ return HB.home(S.set.lo, S.set.hi, ids()); }
+function span(bells){ var n = bells.filter(HB.isNat); if(!n.length) n = bells; if(!n.length) return ''; return n.length === 1 ? L(n[0]) : L(n[0]) + '–' + L(n[n.length-1]); }
+function posLabel(id){ var h = homeChart(), mine = HB.bellsOf(h, id); return 'Pos. ' + (rIndex(id) + 1) + (mine.length ? ' · ' + span(mine) : ''); }
+/* This piece's chart: usual or evened-out positions, then the bells moved by hand. */
+function assignOf(p){
+  var h = homeChart(), locked = {}; S.ringers.forEach(function(r){ if(r.lock) locked[r.id] = 1; });
+  var a = p.mode === 'even' ? HB.balanced(p.bells, ids(), h, locked) : HB.usual(p.bells, h);
+  Object.keys(p.over || {}).forEach(function(m){ if(a[m] !== undefined && ringer(p.over[m])) a[m] = p.over[m]; });
+  return a;
+}
+/* This week's view: the piece's chart with the absent ringers covered. */
+function view(p){
+  var a = assignOf(p), out = outIds();
+  if(!out.length) return {assign:a, moves:[]};
+  return HB.cover(a, ids(), out, S.how);
+}
+
+/* ---------- step 1: choir ---------- */
+function renderChoir(){
+  var opts = ''; for(var m = LO; m <= HI; m++) if(HB.isNat(m)) opts += '<option value="' + m + '">' + L(m) + '</option>';
+  $('setLo').innerHTML = opts; $('setHi').innerHTML = opts; $('setLo').value = S.set.lo; $('setHi').value = S.set.hi;
+  Array.prototype.forEach.call(document.querySelectorAll('[data-set]'), function(b){ b.setAttribute('aria-pressed', b.getAttribute('data-set') === S.set.lo + ',' + S.set.hi ? 'true' : 'false'); });
+  var n = S.ringers.length, std = HB.standardCount(HB.naturals(S.set.lo, S.set.hi)), t = '';
+  $('rCount').textContent = n;
+  if(S.set.lo >= 60 && S.set.hi <= 96){
+    var oct = (S.set.lo === 67 && S.set.hi === 91) ? '2 octaves' : (S.set.lo === 60 && S.set.hi === 96) ? '3 octaves' : 'this set';
+    t = 'Standard for ' + oct + ': <b>' + std + '</b> ringers. ' + (n === std ? 'You have the standard number.' : n < std ? 'You have ' + (std - n) + ' fewer, so some ringers take extra bells.' : 'You have ' + (n - std) + ' more, so some pairs are split.');
+  } else t = 'There is no single standard for 4 or more octaves. Bob Ivey\'s Eight-Ten system uses 10 ringers.';
+  $('stdNote').innerHTML = t;
+  var h = homeChart();
+  $('ringers').innerHTML = S.ringers.map(function(r, i){
+    var mine = HB.bellsOf(h, r.id);
+    return '<div class="rg' + (r.lock ? ' locked' : '') + '"><span class="dot" style="background:' + rColor(r.id) + '"></span><span class="pos">' + (i+1) + '</span>'
+      + '<input type="text" data-name="' + r.id + '" value="' + esc(r.name) + '" placeholder="Ringer ' + (i+1) + '" aria-label="Name of ringer ' + (i+1) + '">'
+      + '<span class="usual">' + (mine.length ? esc(span(mine)) : 'no bells') + '</span>'
+      + '<button class="lock" data-lock="' + r.id + '" aria-pressed="' + (r.lock ? 'true' : 'false') + '" aria-label="Keep ' + esc(rName(r.id)) + ' on their usual bells" title="Keep on usual bells">🔒</button>'
+      + '<button data-up="' + r.id + '" aria-label="Move ' + esc(rName(r.id)) + ' one place toward the bass" title="Move toward the bass"' + (i === 0 ? ' disabled' : '') + '>↑</button>'
+      + '<button data-del="' + r.id + '" aria-label="Remove ' + esc(rName(r.id)) + '" title="Remove"' + (n <= 1 ? ' disabled' : '') + '>✕</button></div>';
+  }).join('');
+  $('exNote').hidden = !S.example;
+}
+
+/* ---------- step 2: piece ---------- */
+function renderPicker(){
+  var p = piece(), on = {}; p.bells.forEach(function(m){ on[m] = 1; });
+  var html = '', x = 0, W = 36;
+  for(var m = LO; m <= HI; m++){
+    var inSet = m >= S.set.lo && m <= S.set.hi, st = (inSet ? '' : 'opacity:.55;');
+    if(HB.isNat(m)){
+      html += '<button class="nat' + (on[m] ? ' on' : '') + '" style="left:' + x + 'px;' + st + '" data-bell="' + m + '" aria-pressed="' + (on[m] ? 'true' : 'false') + '" aria-label="' + L(m) + (inSet ? '' : ' (not in your set)') + '">' + L(m) + '</button>';
+      x += W;
+    } else {
+      html += '<button class="acc' + (on[m] ? ' on' : '') + '" style="left:' + (x - 14) + 'px;' + st + '" data-bell="' + m + '" aria-pressed="' + (on[m] ? 'true' : 'false') + '" aria-label="' + L(m) + '">' + L(m).replace(/\d+$/, '') + '</button>';
+    }
+  }
+  var k = $('kbd'); k.style.width = x + 'px'; k.innerHTML = html;
+  var nat = p.bells.filter(HB.isNat).length, acc = p.bells.length - nat;
+  var outside = p.bells.filter(function(m){ return m < S.set.lo || m > S.set.hi; });
+  $('bellStat').textContent = p.bells.length ? (p.bells.length + ' bells: ' + nat + ' naturals, ' + acc + ' sharps/flats, ' + L(p.bells[0]) + ' to ' + L(p.bells[p.bells.length-1]) + '.' + (outside.length ? ' ' + outside.map(L).join(' ') + ' ' + (outside.length > 1 ? 'are' : 'is') + ' outside your set.' : '')) : 'No bells yet. Click "All naturals in my set", or click bells.';
+  if(document.activeElement !== $('title')) $('title').value = p.title || '';
+  Array.prototype.forEach.call(document.querySelectorAll('[data-mode]'), function(b){ b.setAttribute('aria-pressed', b.getAttribute('data-mode') === p.mode ? 'true' : 'false'); });
+  var locks = S.ringers.filter(function(r){ return r.lock; }).length;
+  $('modeNote').textContent = p.mode === 'even' ? 'This piece is shared out evenly among everyone' + (locks ? ' except the ' + locks + ' locked ringer' + (locks > 1 ? 's' : '') + ', who keep their usual bells' : '') + '. Other pieces keep usual positions.'
+    : 'Everyone rings their usual bells. If this piece leaves some ringers idle, try "Even out for this piece".';
+}
+function scrollPickerTo(m){
+  var k = $('kbdScroll'), b = $('kbd').querySelector('[data-bell="' + m + '"]');
+  if(b) k.scrollLeft = Math.max(0, b.offsetLeft - 20);
+}
+function renderPieces(){
+  var el = $('pieces'), show = isPro() || S.pieces.length > 1;
+  el.innerHTML = (show ? S.pieces.map(function(p){ return '<button data-piece="' + p.id + '" aria-current="' + (p.id === S.cur ? 'true' : 'false') + '">' + esc(pTitle(p)) + '</button>'; }).join('') : '')
+    + '<button data-newpiece="1">+ Another piece' + (isPro() ? '' : ' (Pro)') + '</button>'
+    + (isPro() && S.pieces.length > 1 ? '<button data-delpiece="1">Delete this piece</button><button data-season="1">Print a sheet per ringer, all pieces</button>' : '');
+}
+
+/* ---------- step 3: the table chart ---------- */
+function bellSize(m){ return Math.max(24, HB.isNat(m) ? Math.round(46 - (m - 36) * 0.25) : Math.round(34 - (m - 36) * 0.15)); }
+function renderChart(){
+  var p = piece(), v = view(p), a = v.assign, bells = p.bells, moved = {}, out = S.out, html = '';
+  v.moves.forEach(function(mv){ moved[mv.bell] = mv.to; });
+  var W = 46, x = 0, pos = {};
+  bells.forEach(function(m){ if(HB.isNat(m)){ pos[m] = x; x += W; } });
+  bells.forEach(function(m){   // a sharp/flat sits behind, halfway to the next natural
+    if(HB.isNat(m)) return;
+    var below = null, above = null;
+    bells.forEach(function(n){ if(HB.isNat(n) && n < m) below = n; if(HB.isNat(n) && n > m && above === null) above = n; });
+    pos[m] = below !== null ? pos[below] + W/2 : (above !== null ? pos[above] - W/2 : 0);
+  });
+  var minX = 0; bells.forEach(function(m){ if(pos[m] < minX) minX = pos[m]; });
+  if(minX < 0){ bells.forEach(function(m){ pos[m] -= minX; }); x -= minX; }
+  var width = Math.max(x, W) + 8, ZY = 106;
+  var nats = bells.filter(HB.isNat), runs = [], usualRuns = [], base = assignOf(p);
+  nats.forEach(function(m){ var o = a[m], last = runs[runs.length-1]; if(last && last.o === o) last.to = m; else runs.push({o:o, from:m, to:m}); });
+  nats.forEach(function(m){ var o = base[m]; if(!out[o]) return; var last = usualRuns[usualRuns.length-1]; if(last && last.o === o && last.to === nats[nats.indexOf(m)-1]) last.to = m; else usualRuns.push({o:o, from:m, to:m}); });
+  runs.forEach(function(r){
+    var l = pos[r.from] + 2, w = pos[r.to] - pos[r.from] + W - 4, i = rIndex(r.o);
+    html += '<div class="zone" style="left:' + l + 'px;top:' + ZY + 'px;width:' + w + 'px;background:' + rColor(r.o) + '" title="' + esc(rName(r.o)) + '">' + (i >= 0 ? (i+1) + '. ' : '') + esc(rName(r.o)) + '</div>';
+  });
+  usualRuns.forEach(function(r){
+    var l = pos[r.from] + 2, w = pos[r.to] - pos[r.from] + W - 4;
+    html += '<div class="zone out" style="left:' + l + 'px;top:' + (ZY + 38) + 'px;width:' + w + 'px" title="' + esc(rName(r.o)) + ' is out">' + esc(rName(r.o)) + ' out</div>';
+  });
+  bells.forEach(function(m){
+    var s = bellSize(m), nat = HB.isNat(m), cx = pos[m] + W/2, cy = nat ? 70 : 26, o = a[m];
+    var cls = 'bell ' + (nat ? 'nat' : 'acc') + (moved[m] !== undefined ? ' moved' : '') + (o ? '' : ' nobody');
+    html += '<button class="' + cls + '" data-cbell="' + m + '" style="left:' + (cx - s/2) + 'px;top:' + (cy - s/2) + 'px;width:' + s + 'px;height:' + s + 'px;--c:' + rColor(o) + '" aria-label="' + L(m) + ', rung by ' + esc(rName(o)) + '"><span class="ring"></span>' + L(m).replace(/\d+$/, '<small style="font-size:9px">$&</small>') + '</button>';
+  });
+  var g = $('grid'); g.style.width = width + 'px'; g.style.height = (usualRuns.length ? ZY + 76 : ZY + 38) + 'px'; g.innerHTML = html;
+  $('legend').textContent = bells.length ? 'Bass on the left, treble on the right, as the ringers see the table. Sharps and flats sit behind their natural.' + (v.moves.length ? ' Red dot = covering for someone this week.' : '') : 'Add some bells in step 2.';
+  var hc = homeChart();
+  $('who').innerHTML = S.ringers.map(function(r, i){
+    var mine = HB.bellsOf(a, r.id), n = mine.length, w = '', wk = HB.work(mine);
+    var head = '<span class="pos">' + esc(posLabel(r.id)) + (r.lock ? ' · 🔒' : '') + '</span><b>' + esc(rName(r.id)) + '</b>';
+    if(out[r.id]) return '<div style="--c:' + rColor(r.id) + '">' + head.replace('<b>', '<b class="out">') + 'Out this week</div>';
+    if(n === 0) w = 'No bells in this piece.';
+    else if(wk > 3.05) w = n + ' bells, busier than a normal position. Consider moving one, or check the music.';
+    else if(n > 4) w = n + ' bells: more picking up and putting down.';
+    return '<div style="--c:' + rColor(r.id) + '">' + head + '<span class="bells">' + (mine.map(L).join(' ') || '–') + '</span>' + (w ? '<div class="warn">' + esc(w) + '</div>' : '') + '</div>';
+  }).join('');
+  var std = HB.standardCount(bells), n = S.ringers.length, ex = '';
+  if(bells.length && p.mode === 'usual'){
+    var idle = S.ringers.filter(function(r){ return !out[r.id] && !HB.bellsOf(a, r.id).length; }).length;
+    if(idle) ex = idle + ' ringer' + (idle > 1 ? 's have' : ' has') + ' no bells in this piece. To give everyone something, choose "Even out for this piece" in step 2.';
+  }
+  $('explain').hidden = !ex; $('explain').textContent = ex;
+  $('btnReset').hidden = !Object.keys(p.over || {}).length;
+  var outN = outIds();
+  $('outBanner').hidden = !outN.length;
+  if(outN.length) $('outBanner').innerHTML = '<b>This week\'s table</b>: ' + esc(outN.map(rName).join(', ')) + ' out. Your usual chart is kept; click "Everyone\'s back" in step 4 to return to it.';
+  $('chartHint').textContent = outN.length ? 'Showing this week. To change the usual chart, bring everyone back first.' : 'Click any bell to give it to someone else for this piece.';
+  if(bells.length && !S.example) trackOnce('chart-made');
+}
+
+/* ---------- step 4: absences ---------- */
+var HOW_NOTE = {near:'The ringers next to each missing person take their bells: lower half to the one below, upper half to the one above.',
+  octave:'Missing bells from C6 up go to someone who already rings the same note an octave lower, if they have room (B6 to the B5 ringer). Best when those ringers can ring four-in-hand. Lower bells go to the neighbors.'};
+function renderOut(){
+  var p = piece();
+  $('outChips').innerHTML = S.ringers.map(function(r){ return '<button class="chip" data-out="' + r.id + '" aria-pressed="' + (S.out[r.id] ? 'true' : 'false') + '">' + esc(rName(r.id)) + '</button>'; }).join('');
+  var out = outIds(); $('outTools').hidden = !out.length;
+  if(!out.length) return;
+  Array.prototype.forEach.call(document.querySelectorAll('[data-how]'), function(b){ b.setAttribute('aria-pressed', b.getAttribute('data-how') === S.how ? 'true' : 'false'); });
+  $('howNote').textContent = HOW_NOTE[S.how];
+  var v = view(p);
+  $('moves').innerHTML = movesText(v.moves).map(function(t){ return '<li>' + t + '</li>'; }).join('') || '<li>Their bells aren\'t in this piece. Nothing to change.</li>';
+}
+function movesText(moves){
+  var by = {}, order = [];
+  moves.forEach(function(mv){ var k = mv.to || '_none'; if(!by[k]){ by[k] = []; order.push(k); } by[k].push(mv); });
+  order.sort(function(a, b){ return rIndex(a) - rIndex(b); });
+  return order.map(function(k){
+    var list = by[k].map(function(mv){ return '<b>' + L(mv.bell) + '</b>'; }).join(' ');
+    if(k === '_none') return 'Nobody is free for ' + list + '. Leave it out or bring a sub.';
+    return esc(rName(k)) + ' also takes ' + list + ' (from ' + esc(uniq(by[k].map(function(mv){ return rName(mv.from); })).join(', ')) + ')';
+  });
+}
+function uniq(a){ var s = {}, r = []; a.forEach(function(x){ if(!s[x]){ s[x] = 1; r.push(x); } }); return r; }
+
+/* ---------- pro ---------- */
+function buyUrl(){
+  var a = ''; try{ a = new URLSearchParams(location.search).get('a') || localStorage.getItem('hbc.aff') || ''; a = a.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 40); if(a) localStorage.setItem('hbc.aff', a); }catch(e){}
+  return a ? CHECKOUT_PLAN + '?a=' + encodeURIComponent(a) : CHECKOUT_HOME;
+}
+function renderPro(){
+  $('buyLink').href = buyUrl();
+  $('proPrice').textContent = PRICE;
+  if(isPro()){
+    $('proBuy').hidden = true;
+    $('proState').innerHTML = '<p class="ok">Pro is on for this browser' + (PRO.email ? ' (' + esc(PRO.email) + ')' : '') + '. Thank you.</p><p>Use "+ Another piece" at the top of step 2. On another computer, enter the same email or code there.</p>';
+  } else {
+    $('proBuy').hidden = false;
+    $('proState').innerHTML = /[?&]bought=1/.test(location.search) ? '<p class="ok">Thanks for buying! Enter the email you paid with to unlock.</p>' : '';
+  }
+}
+function proGate(why){
+  track('pro-limit');
+  say(why + ' is part of Pro (' + PRICE + ' once).');
+  $('proSec').scrollIntoView({behavior:'smooth'});
+}
+function sha256hex(s){
+  return crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)).then(function(buf){
+    return Array.prototype.map.call(new Uint8Array(buf), function(b){ return ('0' + b.toString(16)).slice(-2); }).join('');
+  });
+}
+var unlocking = false;
+function unlock(){
+  var v = $('proKey').value.trim(), msg = $('proMsg');
+  if(unlocking) return;
+  if(!v){ msg.innerHTML = '<span class="err">Type the email you paid with, or your gift code.</span>'; return; }
+  if(v.indexOf('@') < 0){
+    if(!window.crypto || !crypto.subtle){ msg.innerHTML = '<span class="err">This browser can\'t check codes. Try another browser.</span>'; return; }
+    sha256hex(v.toUpperCase().replace(/\s+/g, '')).then(function(hx){
+      if(GIFT.indexOf(hx) >= 0){ PRO = {gift: hx.slice(0, 12)}; lsSet(PROKEY, PRO); track('pro-gift'); msg.textContent = ''; renderAll(); say('Pro unlocked. Enjoy!'); }
+      else msg.innerHTML = '<span class="err">That code didn\'t match. Check the letters, or use the email you paid with.</span>';
+    });
+    return;
+  }
+  unlocking = true; msg.textContent = 'Checking…';
+  fetch(VERIFY_URL, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({app:APP_KEY, email:v})})
+    .then(function(r){ if(!r.ok) throw new Error('http ' + r.status); return r.json(); })
+    .then(function(j){
+      unlocking = false;
+      if(j && j.ok && j.valid){ PRO = {email:v.toLowerCase()}; lsSet(PROKEY, PRO); track('pro-unlocked'); msg.textContent = ''; renderAll(); say('Pro unlocked. Thank you!'); }
+      else if(j && j.ok){ track('pro-notfound'); msg.innerHTML = '<span class="err">No purchase found for that email. Use the email you typed at checkout. Just paid? Wait a minute and try again.</span>'; }
+      else throw new Error('bad reply');
+    }).catch(function(){ unlocking = false; msg.innerHTML = '<span class="err">Couldn\'t reach the checker. Check your connection and try again.</span>'; });
+}
+
+/* ---------- printing ---------- */
+function today(){ try{ return new Date().toLocaleDateString(undefined, {year:'numeric', month:'long', day:'numeric'}); }catch(e){ return ''; } }
+function stamp(){ return '<div class="pa-foot">Printed ' + esc(today()) + ' · Made with Handbell Chart, free at samsbench.com/handbell-chart</div>'; }
+function stripHTML(v){
+  var a = v.assign, moved = {}; v.moves.forEach(function(mv){ moved[mv.bell] = 1; });
+  function bl(m){ var t = '<span>' + L(m) + '</span>'; return moved[m] ? '<u>' + t + '</u>' : t; }
+  return '<div class="pa-strip">' + S.ringers.map(function(r, i){
+    var mine = HB.bellsOf(a, r.id);
+    var h = '<h3>' + esc(posLabel(r.id)) + '<i>' + esc(rName(r.id)) + '</i></h3>';
+    if(S.out[r.id]) return '<div class="pa-col out" style="--c:' + rColor(r.id) + ';flex:1 1 0">' + h + '<div class="b">out</div></div>';
+    return '<div class="pa-col" style="--c:' + rColor(r.id) + ';flex:' + Math.max(1, mine.length) + ' 1 0">' + h + '<div class="b">' + (mine.map(bl).join(' ') || '–') + '</div></div>';
+  }).join('') + '</div>';
+}
+function printNow(html, ev){
+  $('printArea').innerHTML = html; track(ev); trackOnce('chart-used');
+  setTimeout(function(){ window.print(); }, 50);
+}
+function printChart(){
+  var p = piece(), v = view(p), out = outIds();
+  printNow('<div class="pa-head"><h1>' + esc(pTitle(p)) + '</h1><span>' + S.ringers.length + ' ringers · ' + p.bells.length + ' bells' + (out.length ? ' · this week: ' + esc(out.map(rName).join(', ')) + ' out (underlined = covering)' : '') + '</span></div>'
+    + stripHTML(v) + stamp(), 'print-chart');
+}
+function cardHTML(r, rows, sub){
+  return '<div class="pa-card" style="--c:' + rColor(r.id) + '"><h2>' + esc(rName(r.id)) + '</h2><div class="t">' + esc(posLabel(r.id)) + ' · ' + sub + '</div>' + rows + '</div>';
+}
+function printCards(){
+  var p = piece(), v = view(p);
+  printNow('<div class="pa-cards">' + S.ringers.filter(function(r){ return !S.out[r.id]; }).map(function(r){
+    var mine = HB.bellsOf(v.assign, r.id);
+    return cardHTML(r, '<div class="b">' + (mine.map(L).join(' ') || 'No bells in this piece') + '</div>', esc(pTitle(p)));
+  }).join('') + '</div>' + stamp(), 'print-cards');
+}
+function printSlip(){
+  var all = isPro() && S.pieces.length > 1, list = all ? S.pieces : [piece()], out = outIds();
+  printNow('<div class="pa-head"><h1>Changes this week</h1><span>Out: ' + esc(out.map(rName).join(', ')) + '</span></div>'
+    + list.map(function(p){
+      var t = movesText(view(p).moves);
+      return '<div class="pa-slip"><h2>' + esc(pTitle(p)) + '</h2><ul>' + (t.map(function(x){ return '<li>' + x + '</li>'; }).join('') || '<li>No changes</li>') + '</ul></div>';
+    }).join('') + stamp(), 'print-slip');
+}
+function printSeason(){
+  if(!isPro()){ proGate('A sheet per ringer for every piece'); return; }
+  printNow('<div class="pa-cards">' + S.ringers.map(function(r){
+    var rows = '<table>' + S.pieces.map(function(p){ var mine = HB.bellsOf(view(p).assign, r.id); return '<tr><td>' + esc(pTitle(p)) + '</td><td class="b2">' + (S.out[r.id] ? 'out' : (mine.map(L).join(' ') || '–')) + '</td></tr>'; }).join('') + '</table>';
+    return cardHTML(r, rows, S.pieces.length + ' pieces');
+  }).join('') + '</div>' + stamp(), 'print-season');
+}
+function asText(){
+  var p = piece(), v = view(p), out = outIds();
+  var t = pTitle(p) + ' (' + S.ringers.length + ' ringers' + (out.length ? ', this week without ' + out.map(rName).join(', ') : '') + ')\n';
+  S.ringers.forEach(function(r){ if(S.out[r.id]) return; t += posLabel(r.id) + ' · ' + rName(r.id) + ': ' + (HB.bellsOf(v.assign, r.id).map(L).join(' ') || '-') + '\n'; });
+  return t + '\nMade with Handbell Chart: ' + SITE + '?via=text\n';
+}
+
+/* ---------- share links: everything after # stays in the browser (GoatCounter never sees it) ---------- */
+function b64e(s){ return btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+function b64d(s){ s = s.replace(/-/g, '+').replace(/_/g, '/'); while(s.length % 4) s += '='; return decodeURIComponent(escape(atob(s))); }
+function shareLink(){
+  var p = piece(), a = assignOf(p), id = ids();
+  var o = {t:p.title || '', n:S.ringers.map(function(r){ return r.name; }), s:[S.set.lo, S.set.hi], b:p.bells, a:p.bells.map(function(m){ return id.indexOf(a[m]); })};
+  return SITE + '?via=share#c=' + b64e(JSON.stringify(o));
+}
+function openShared(){
+  var h = location.hash; if(h.indexOf('#c=') !== 0) return false;
+  try{
+    var o = JSON.parse(b64d(h.slice(3)));
+    if(!o || !Array.isArray(o.b) || !Array.isArray(o.n) || !Array.isArray(o.a) || !o.n.length || o.n.length > 30 || o.b.length > 100) throw 0;
+    var ringers = o.n.map(function(nm, i){ return {id:'r' + (i+1), name:String(nm || '').slice(0, 40), lock:false}; });
+    var lo = Array.isArray(o.s) ? +o.s[0] : 60, hi = Array.isArray(o.s) ? +o.s[1] : 96;
+    var st = {v:2, set:{lo:lo, hi:hi}, ringers:ringers, pieces:[{id:'p1', title:String(o.t || '').slice(0, 80), bells:o.b, mode:'usual', over:{}}], cur:'p1', out:{}, how:'near', example:false};
+    if(!valid(st)) throw 0;
+    var p = st.pieces[0];
+    o.b.forEach(function(m, i){ var k = o.a[i]; if(ringers[k] && p.bells.indexOf(+m) >= 0) p.over[+m] = ringers[k].id; });
+    MINE = S; S = st;
+    $('shareBar').hidden = false; track('open-shared');
+    return true;
+  }catch(e){ return false; }
+}
+
+/* ---------- glue ---------- */
+var toastT;
+function say(t){ var el = $('toast'); el.textContent = t; el.style.display = 'block'; clearTimeout(toastT); toastT = setTimeout(function(){ el.style.display = 'none'; }, 3600); }
+function copy(text, ok){
+  function fallback(){ try{ prompt('Copy this:', text); }catch(e){} }
+  if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function(){ say(ok); }, fallback);
+  else fallback();
+}
+function renderAll(){ renderChoir(); renderPieces(); renderPicker(); renderChart(); renderOut(); renderPro(); save(); }
+var menuEl = null;
+var menuFrom = null;
+function closeMenu(back){ if(menuEl){ menuEl.remove(); menuEl = null; if(back && menuFrom && document.body.contains(menuFrom)) menuFrom.focus(); } }
+function openMenu(m, anchor){
+  closeMenu(); menuFrom = anchor;
+  var p = piece(), a = assignOf(p), cur = a[m], loads = HB.loads(a);
+  menuEl = document.createElement('div'); menuEl.className = 'menu'; menuEl.setAttribute('role', 'menu');
+  menuEl.innerHTML = '<p>Who rings ' + L(m) + ' in this piece?</p>' + S.ringers.map(function(r, i){
+    return '<button role="menuitem" data-give="' + r.id + '" data-bellm="' + m + '"' + (r.id === cur ? ' aria-current="true"' : '') + '><span class="dot" style="background:' + rColor(r.id) + '"></span>' + (i+1) + '. ' + esc(rName(r.id)) + ' <small>(' + (loads[r.id]||0) + ' bells)</small>' + (r.id === cur ? ' ✓' : '') + '</button>';
+  }).join('');
+  document.body.appendChild(menuEl);
+  var rc = anchor.getBoundingClientRect(), mw = menuEl.offsetWidth, mh = menuEl.offsetHeight;
+  var left = Math.min(Math.max(8, rc.left), window.innerWidth - mw - 8), top = rc.bottom + 6;
+  if(top + mh > window.innerHeight - 8) top = Math.max(8, rc.top - mh - 6);
+  menuEl.style.left = left + 'px'; menuEl.style.top = top + 'px';
+  var f = menuEl.querySelector('[aria-current]') || menuEl.querySelector('button'); if(f) f.focus();
+}
+function cleanOver(){   // drop hand moves that point at ringers who no longer exist
+  S.pieces.forEach(function(p){ Object.keys(p.over).forEach(function(m){ if(!ringer(p.over[m]) || p.bells.indexOf(+m) < 0) delete p.over[m]; }); });
+  Object.keys(S.out).forEach(function(id){ if(!ringer(id)) delete S.out[id]; });
+}
+function setCount(n){
+  n = Math.max(1, Math.min(30, n));
+  while(S.ringers.length < n) S.ringers.push({id:uid('r'), name:'', lock:false});
+  while(S.ringers.length > n) S.ringers.pop();
+  cleanOver();
+}
+
+document.addEventListener('click', function(e){
+  var t = e.target.closest('button, a'); if(!t){ closeMenu(); return; }
+  if(t.hasAttribute('data-buy')){   // count first, then leave: a count sent while the page unloads can get lost
+    track('buy-click'); e.preventDefault(); var href = t.href; setTimeout(function(){ location.href = href; }, 250); return;
+  }
+  if(menuEl && !menuEl.contains(t)) closeMenu();
+  if(t.disabled) return;
+  var d = t.dataset, p = piece();
+  if(d.set){ var r = d.set.split(',').map(Number); started(); setSet(r[0], r[1]); return; }
+  if(t.id === 'rPlus' || t.id === 'rMinus'){ started(); setCount(S.ringers.length + (t.id === 'rPlus' ? 1 : -1)); renderAll(); return; }
+  if(d.del){ if(S.ringers.length <= 1) return; started(); S.ringers = S.ringers.filter(function(r){ return r.id !== d.del; }); cleanOver(); renderAll(); return; }
+  if(d.up){ var k = rIndex(d.up); if(k <= 0) return; started(); var tmp = S.ringers[k-1]; S.ringers[k-1] = S.ringers[k]; S.ringers[k] = tmp; renderAll(); return; }
+  if(d.lock){ var rl = ringer(d.lock); if(rl){ started(); rl.lock = !rl.lock; track('lock'); renderAll(); } return; }
+  if(d.bell){
+    var m = +d.bell, i = p.bells.indexOf(m); started();
+    if(i >= 0){ p.bells.splice(i, 1); delete p.over[m]; } else p.bells.push(m);
+    p.bells = HB.sorted(p.bells); renderAll(); return;
+  }
+  if(t.id === 'btnAllNat'){ started(); p.bells = HB.sorted(p.bells.filter(function(m){ return !HB.isNat(m); }).concat(HB.naturals(S.set.lo, S.set.hi))); cleanOver(); renderAll(); scrollPickerTo(S.set.lo); return; }
+  if(d.key){
+    var pc = +d.key % 12, add = HB.range(S.set.lo, S.set.hi).filter(function(x){ return x % 12 === pc; }); started();
+    var has = add.every(function(x){ return p.bells.indexOf(x) >= 0; });
+    p.bells = HB.sorted(has ? p.bells.filter(function(x){ return x % 12 !== pc; }) : p.bells.concat(add)); cleanOver(); renderAll();
+    say(has ? 'Took out every ' + L(+d.key).replace(/\d+$/, '') + '.' : 'Added every ' + L(+d.key).replace(/\d+$/, '') + ' in your set.'); return;
+  }
+  if(t.id === 'btnClear'){ started(); p.bells = []; p.over = {}; renderAll(); return; }
+  if(d.mode){ started(); p.mode = d.mode; track('mode-' + d.mode); renderAll(); return; }
+  if(d.cbell){
+    if(outIds().length){ say('This shows the week with someone out. Click "Everyone\'s back" to edit the usual chart.'); return; }
+    openMenu(+d.cbell, t); return;
+  }
+  if(d.give){ started(); var bm = +d.bellm; p.over[bm] = d.give; closeMenu(); track('bell-moved'); renderAll(); var nb = $('grid').querySelector('[data-cbell="' + bm + '"]'); if(nb) nb.focus(); return; }
+  if(d.out){ started(); if(S.out[d.out]) delete S.out[d.out]; else { S.out[d.out] = 1; trackOnce('absent-used'); } renderAll(); return; }
+  if(d.how){ S.how = d.how; track('cover-' + d.how); renderAll(); return; }
+  if(t.id === 'btnAllBack'){ S.out = {}; renderAll(); return; }
+  if(t.id === 'btnReset'){ p.over = {}; renderAll(); say('Back to the suggested chart for this piece.'); return; }
+  if(t.id === 'btnPrintChart'){ printChart(); return; }
+  if(t.id === 'btnPrintCards'){ printCards(); return; }
+  if(t.id === 'btnPrintSlip'){ printSlip(); return; }
+  if(t.id === 'btnCopy'){ track('copy-text'); trackOnce('chart-used'); copy(asText(), 'Copied. Paste it into an email or text to your ringers.'); return; }
+  if(t.id === 'btnShare'){ track('share'); trackOnce('chart-used'); copy(shareLink(), 'Link copied. Whoever opens it sees this chart; their own stays safe.'); return; }
+  if(t.id === 'btnUnlock'){ unlock(); return; }
+  if(d.piece){ S.cur = d.piece; renderAll(); return; }
+  if(d.newpiece){
+    if(!isPro() && S.pieces.length >= FREE_PIECES){ proGate('Keeping more than one piece'); return; }
+    var np = {id:uid('p'), title:'', bells:HB.naturals(S.set.lo, S.set.hi), mode:'usual', over:{}};
+    S.pieces.push(np); S.cur = np.id; renderAll(); $('title').focus(); say('New piece: all naturals in your set to start. Change them.'); return;
+  }
+  if(d.delpiece){ if(S.pieces.length < 2 || !confirm('Delete "' + pTitle(p) + '"?')) return; S.pieces = S.pieces.filter(function(q){ return q.id !== p.id; }); S.cur = S.pieces[0].id; renderAll(); return; }
+  if(d.season){ printSeason(); return; }
+  if(t.id === 'btnBackup'){
+    var blob = new Blob([JSON.stringify(MINE || S, null, 1)], {type:'application/json'}), a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'handbell-chart-backup.json'; document.body.appendChild(a); a.click(); a.remove(); track('backup'); return;
+  }
+  if(t.id === 'btnRestore'){
+    var f = document.createElement('input'); f.type = 'file'; f.accept = '.json,application/json';
+    f.onchange = function(){ var rd = new FileReader(); rd.onload = function(){ try{ var o = JSON.parse(rd.result); if(!valid(o)) throw 0; MINE = null; $('shareBar').hidden = true; S = o; cleanOver(); renderAll(); say('Backup restored.'); }catch(e){ say('That file is not a Handbell Chart backup.'); } }; if(f.files[0]) rd.readAsText(f.files[0]); };
+    f.click(); return;
+  }
+  if(t.id === 'btnKeepShared'){ if(!confirm('Replace your own choir and pieces on this device with this chart? Cancel, then use "Back to mine" and "Save a backup" if you want to keep a copy of yours.')) return; MINE = null; $('shareBar').hidden = true; history.replaceState(null, '', location.pathname + location.search); save(); say('This chart is yours now.'); return; }
+  if(t.id === 'btnBackMine'){ S = MINE; MINE = null; $('shareBar').hidden = true; history.replaceState(null, '', location.pathname + location.search); renderAll(); return; }
+});
+function setSet(lo, hi){
+  if(hi < lo){ var x = lo; lo = hi; hi = x; }
+  S.set = {lo:lo, hi:hi};
+  S.pieces.forEach(function(p){ if(S.example || (p.bells.length === 0)) p.bells = HB.naturals(lo, hi); });
+  cleanOver(); renderAll(); scrollPickerTo(lo);
+}
+document.addEventListener('change', function(e){
+  if(e.target.id === 'setLo' || e.target.id === 'setHi'){ started(); setSet(+$('setLo').value, +$('setHi').value); }
+});
+document.addEventListener('keydown', function(e){
+  if(!menuEl) return;
+  if(e.key === 'Escape'){ closeMenu(true); return; }
+  if(e.key === 'ArrowDown' || e.key === 'ArrowUp'){
+    var bs = Array.prototype.slice.call(menuEl.querySelectorAll('button')), i = bs.indexOf(document.activeElement);
+    i = (i + (e.key === 'ArrowDown' ? 1 : -1) + bs.length) % bs.length; bs[i].focus(); e.preventDefault();
+  }
+});
+document.addEventListener('input', function(e){
+  var t = e.target;
+  if(t.id === 'title'){ started(); piece().title = t.value.slice(0, 80); renderPieces(); save(); return; }
+  if(t.dataset.name){ var r = ringer(t.dataset.name); if(r){ started(); r.name = t.value.slice(0, 40); renderChart(); renderOut(); save(); } }
+});
+$('proKey').addEventListener('keydown', function(e){ if(e.key === 'Enter') unlock(); });
+
+openShared();
+renderAll();
+scrollPickerTo(piece().bells.length ? piece().bells[0] : S.set.lo);
+try{ var seenPro = false; new IntersectionObserver(function(es){ es.forEach(function(x){ if(x.isIntersecting && !seenPro && !isPro()){ seenPro = true; track('pro-view'); } }); }).observe($('proSec')); }catch(e){}
+if(GC_CODE){ var gs = document.createElement('script'); gs.async = true; gs.src = '//gc.zgo.at/count.js'; gs.setAttribute('data-goatcounter', 'https://' + GC_CODE + '.goatcounter.com/count'); document.head.appendChild(gs); }
+(function(){
+  var q = new URLSearchParams(location.search);
+  var via = (q.get('via') || '').replace(/[^a-z0-9-]/g, '').slice(0, 20), af = (q.get('a') || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 40);
+  if(via) track('via-' + via);
+  if(af) track('aff-' + af);
+  if(q.get('bought') === '1' && !isPro()) setTimeout(function(){ $('proSec').scrollIntoView(); $('proKey').focus(); }, 400);
+})();
+window.HBC = {state:function(){ return S; }, view:view};   // for tests
+})();
+</script>
+</body>
+</html>
