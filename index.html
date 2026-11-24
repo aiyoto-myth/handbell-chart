@@ -154,12 +154,12 @@ footer{margin:40px 0 30px;color:var(--ink2);font-size:15px}
   #printArea{display:block!important;color:#000;font-family:"Atkinson Hyperlegible",Arial,sans-serif}
   .pa-head{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid #000;margin-bottom:8px}
   .pa-head h1{font-size:22pt}
-  .pa-strip{display:flex;flex-wrap:wrap;gap:0;margin:10mm 0;break-inside:avoid}
-  .pa-col{min-height:45mm}
+  .pa-strip{display:grid;grid-template-columns:repeat(var(--cols,6),1fr);gap:0;margin:6mm 0}
+  .pa-col{min-height:55mm}
   .pa-col{border:1.5px solid #000;margin:-0.75px;padding:4px 6px 6px;min-width:0;break-inside:avoid}
   .pa-col h3{font-family:Arial,sans-serif;font-size:12pt;margin:0 0 3px;border-bottom:5px solid var(--c);padding-bottom:2px}
-  .pa-col h3 i{font-style:normal;display:block;font-size:16pt}
-  .pa-col .b{font-size:20pt;font-weight:700;line-height:1.25}
+  .pa-col h3 i{font-style:normal;display:block;font-size:20pt}
+  .pa-col .b{font-size:26pt;font-weight:700;line-height:1.25}
   .pa-col .b span{white-space:nowrap}
   .pa-col.out h3{text-decoration:line-through}
   .pa-col .mv{font-size:10pt;font-weight:700}
@@ -362,6 +362,21 @@ var HB = (function(){
     var n = isNat(m) ? m : m - 1, w = n < 60 ? 0.45 : n < 67 ? 0.6 : n < 91 ? 1 : n <= 96 ? 0.6 : 0.35;
     return isNat(m) ? w : w * 0.6;
   }
+  /* weigher(lo, hi, bells): weights for one choir set and one piece.
+     - In a set inside C4..C7 (2-3 octaves) the bands are relative: the lowest 4 naturals are the bass (0.6), the top 4 the
+       high treble (0.6), the rest 1.0. So in a 2-octave G4-G6 set, G4-C5 counts as bass (review r2 #4).
+     - A sharp/flat the piece uses in two or more octaves is treated as a key note and weighs like a natural (review r2 #3:
+       in E-flat, B-flat/E-flat/A-flat are scale notes, not rare accidentals). */
+  function weigher(lo, hi, bells){
+    var rel = lo >= 60 && hi <= 96, nat = rel ? naturals(lo, hi) : [], band = {};
+    nat.forEach(function(m, i){ band[m] = (i < 4 || i >= nat.length - 4) ? 0.6 : 1; });
+    var pcCount = {}; (bells || []).forEach(function(m){ if(!isNat(m)) pcCount[((m%12)+12)%12] = (pcCount[((m%12)+12)%12] || 0) + 1; });
+    return function(m){
+      var n = isNat(m) ? m : m - 1, w = band[n] !== undefined ? band[n] : weight(n);
+      return isNat(m) || pcCount[((m%12)+12)%12] >= 2 ? w : w * 0.6;
+    };
+  }
+  var LIMIT = 4;     // most work one ringer should get when covering: two busy positions (a busy pair with both sharps/flats is 3.2)
   /* Cost of one ringer's bells: work squared (so work spreads evenly), plus a penalty past 6 bells (too much picking up). */
   function groupCost(work, count){ return work * work + Math.max(0, count - 6) * 1.5; }
   function cutCost(a, b){            // cost of putting a split between neighbouring bells a < b
@@ -371,13 +386,14 @@ var HB = (function(){
   function units(b){ var g = [], last = null; b.forEach(function(m){ if(last === null || unit(m) !== last){ g.push([]); last = unit(m); } g[g.length-1].push(m); }); return g; }
   /* Split the piece's bells, low to high, into n contiguous groups at the lowest total cost.
      n equal to the standard count gives exactly the standard positions. */
-  function plan(bells, n){
+  function plan(bells, n, wfn){
+    wfn = wfn || weight;
     var b = sorted(bells), B = b.length;
     n = Math.floor(+n) || 0;
     if(n < 1 || B === 0) return [];
     if(n > B) n = B;
     var u = units(b); if(u.length === n) return u;
-    var pre = [0]; b.forEach(function(m, i){ pre.push(pre[i] + weight(m)); });
+    var pre = [0]; b.forEach(function(m, i){ pre.push(pre[i] + wfn(m)); });
     var INF = 1e18, dp = [], from = [];
     for(var k = 0; k <= n; k++){ dp.push(new Array(B+1).fill(INF)); from.push(new Array(B+1).fill(-1)); }
     dp[0][0] = 0;
@@ -394,7 +410,7 @@ var HB = (function(){
     for(k = n; k >= 1; k--){ var st = from[k][end]; groups.unshift(b.slice(st, end)); end = st; }
     return groups;
   }
-  function work(bells){ return bells.reduce(function(s, m){ return s + weight(m); }, 0); }
+  function work(bells, wfn){ wfn = wfn || weight; return bells.reduce(function(s, m){ return s + wfn(m); }, 0); }
 
   /* An assignment is {bell: ringerId}. order = ringer ids low to high on the table. */
   function fromGroups(groups, ids){ var a = {}; groups.forEach(function(g, i){ g.forEach(function(m){ a[m] = ids[i]; }); }); return a; }
@@ -405,7 +421,7 @@ var HB = (function(){
      then follows the natural just below it, so a ringer's place never depends on which accidentals a piece happens to use. */
   function home(lo, hi, ids){
     var a = {}, nat = naturals(lo, hi);
-    fromGroupsInto(a, plan(nat, ids.length), ids);
+    fromGroupsInto(a, plan(nat, ids.length, weigher(lo, hi)), ids);
     range(lo, hi).forEach(function(m){ if(!isNat(m)) a[m] = a[m-1] !== undefined ? a[m-1] : a[m+1]; });
     Object.keys(a).forEach(function(k){ if(a[k] === undefined) delete a[k]; });
     return a;
@@ -424,13 +440,13 @@ var HB = (function(){
   }
   /* balanced(): split this piece's bells evenly among the ringers, except locked ringers, who keep their usual bells.
      Unlocked ringers between two locked ones share the bells between them, so the table order never changes. */
-  function balanced(bells, order, home, locked){
+  function balanced(bells, order, home, locked, wfn){
     var b = sorted(bells), a = {}, base = usual(b, home), fixed = {};
     order.forEach(function(id){ if(locked[id]) b.forEach(function(m){ if(base[m] === id){ a[m] = id; fixed[m] = 1; } }); });
     var seg = [], segBells = [];
     function flush(){
       if(!seg.length) return;
-      if(segBells.length) fromGroupsInto(a, plan(segBells, seg.length), seg);
+      if(segBells.length) fromGroupsInto(a, plan(segBells, seg.length, wfn), seg);
       seg = []; segBells = [];
     }
     var free = b.filter(function(m){ return !fixed[m]; }), fi = 0;
@@ -449,86 +465,91 @@ var HB = (function(){
   }
   function fromGroupsInto(a, groups, ids){ groups.forEach(function(g, i){ g.forEach(function(m){ a[m] = ids[i]; }); }); }
 
-  /* Someone is out. Three ways, all from the sources (D4, D5):
-     'near'   - the ringers next to them on the table split their bells (lower half down, upper half up);
-     'octave' - each bell goes to a ringer who already rings the same note an octave away (D4: B6 to the B5 ringer, C7 to the C6 ringer);
-     'fresh'  - split the whole piece again among the people who are there.
-     Returns {assign, moves:[{bell, from, to}]}. Bells nobody can take stay with from = to = absent id and are listed in moves with to: null. */
-  function cover(assign, order, absent, how){
-    var out = {}, isOut = {}; absent.forEach(function(id){ isOut[id] = 1; });
+  /* Someone is out. Two ways (D4, D5):
+     'near'   - the absent ringers next to each other are one block; the nearest ringer on each side takes the block's bells
+                (lower part down, upper part up, everyone keeps their own). If that leaves someone past LIMIT, the ringers
+                around the gap re-split their stretch of table among themselves, one more on each side at a time.
+                Bells never cross: the table order stays bass to treble (review r2 #1).
+     'octave' - a missing bell from C6 up goes to someone who rings the same note an octave away and has room
+                (D4: B6 to the B5 ringer, C7 to the C6 ringer); its sharp/flat follows it; everything else as 'near'.
+     Returns {assign, moves:[{bell, from, to}]}; to is null when nobody is left to take a bell. */
+  function cover(assign, order, absent, how, wfn){
+    wfn = wfn || weight;
+    var isOut = {}; absent.forEach(function(id){ isOut[id] = 1; });
     var here = order.filter(function(id){ return !isOut[id]; });
-    var bells = sorted(Object.keys(assign).map(Number));
-    var moves = [];
+    var bells = sorted(Object.keys(assign).map(Number)), out = {};
+    bells.forEach(function(m){ out[m] = assign[m]; });
+    function owned(id){ return bells.filter(function(m){ return out[m] === id; }); }
+    function w(id){ return work(owned(id), wfn); }
     if(!here.length){
       var none = {}; bells.forEach(function(m){ if(!isOut[assign[m]]) none[m] = assign[m]; });
       return {assign:none, moves: bells.filter(function(m){ return isOut[assign[m]]; }).map(function(m){ return {bell:m, from:assign[m], to:null}; })};
     }
-    if(how === 'fresh'){
-      var a = fromGroups(plan(bells, here.length), here);
-      bells.forEach(function(m){ if(a[m] !== assign[m]) moves.push({bell:m, from:assign[m], to:a[m]}); });
-      return {assign:a, moves:moves};
-    }
-    Object.keys(assign).forEach(function(m){ out[m] = assign[m]; });
-    var load = {}; here.forEach(function(id){ load[id] = 0; }); bells.forEach(function(m){ if(!isOut[assign[m]]) load[assign[m]]++; });
-    function nearIdx(pos, dir){ for(var p = pos + dir; p >= 0 && p < order.length; p += dir) if(!isOut[order[p]]) return order[p]; return null; }
-    function give(m, to){ moves.push({bell:m, from:assign[m], to:to}); out[m] = to; load[to]++; }
-    /* Neighbors cover: lower bells to the nearest ringer below, upper bells to the nearest above, nobody past MAXB bells.
-       Bells that don't fit go to the next-nearest ringers with room, then to whoever has the fewest. */
-    var MAXB = 6;
-    function room(r){ return r === null ? 0 : Math.max(0, MAXB - load[r]); }
-    function nearSplit(list, pos){
-      var dn = nearIdx(pos, -1), up = nearIdx(pos, 1), n = list.length;
-      var lo = Math.max(0, n - room(up)), hi = Math.min(n, room(dn));
-      var best = -1, bestC = 1e18;
-      for(var c = lo; c <= hi; c++){
-        var tear = (c > 0 && c < n) ? cutCost(list[c-1], list[c]) : 0;
-        var diff = Math.abs(((dn === null ? 0 : load[dn]) + c) - ((up === null ? 0 : load[up]) + n - c));
-        var cost = tear * 1.5 + diff;   // splitting a pair between the two neighbours is normal (D4); tearing a sharp off its natural is not
-        if(cost < bestC){ bestC = cost; best = c; }
-      }
-      var rest = [];
-      if(best >= 0){ list.forEach(function(m, i){ give(m, i < best ? dn : up); }); return; }
-      var nd = room(dn), nu = room(up);                 // not enough room next door: fill both, spread the middle further out
-      list.forEach(function(m, i){ if(i < nd) give(m, dn); else if(i >= n - nu) give(m, up); else rest.push(m); });
-      var further = [];
-      for(var k = 2; k < order.length; k++){
-        var d1 = pos - k, u1 = pos + k;
-        if(d1 >= 0 && !isOut[order[d1]] && order[d1] !== dn) further.push(order[d1]);
-        if(u1 < order.length && !isOut[order[u1]] && order[u1] !== up) further.push(order[u1]);
-      }
-      rest.forEach(function(m){
-        var to = null;
-        for(var j = 0; j < further.length; j++) if(room(further[j]) > 0){ to = further[j]; break; }
-        if(to === null) here.forEach(function(r){ if(to === null || load[r] < load[to]) to = r; });
-        give(m, to);
+    if(how === 'octave'){
+      bells.forEach(function(m){
+        if(!isOut[assign[m]] || m < 84) return;
+        if(!isNat(m) && assign[m - 1] === assign[m]){ if(!isOut[out[m - 1]]) out[m] = out[m - 1]; return; }   // follows its natural
+        var best = null, bestKey = null;
+        here.forEach(function(r){
+          var hold = bells.filter(function(x){ return out[x] === r && x !== m && (x - m) % 12 === 0; });
+          if(!hold.length || w(r) + wfn(m) > LIMIT) return;
+          var key = Math.min.apply(null, hold.map(function(x){ return Math.abs(x - m); })) * 100 + w(r);
+          if(bestKey === null || key < bestKey){ bestKey = key; best = r; }
+        });
+        if(best !== null) out[m] = best;
       });
     }
-    order.forEach(function(id, pos){
-      if(!isOut[id]) return;
-      var mine = bells.filter(function(m){ return assign[m] === id; });
-      if(how === 'octave'){
-        var left = [];
-        mine.forEach(function(m){
-          var best = null, bestKey = null;
-          if(m < 84){ left.push(m); return; }
-          if(!isNat(m) && mine.indexOf(m - 1) >= 0){ if(out[m - 1] !== id) give(m, out[m - 1]); else left.push(m); return; }   // a sharp/flat follows its natural
-          here.forEach(function(r){
-            var hold = bells.filter(function(x){ return out[x] === r && !isOut[r] && (x - m) % 12 === 0 && x !== m; });
-            if(!hold.length) return;
-            var dist = Math.min.apply(null, hold.map(function(x){ return Math.abs(x - m); }));
-            var key = dist * 100 + load[r];
-            if(bestKey === null || key < bestKey){ bestKey = key; best = r; }
-          });
-          if(m >= 84 && best !== null && load[best] < 5) give(m, best); else left.push(m);   // D4: only the small treble bells
-        });
-        if(left.length) nearSplit(left, pos);
-      } else nearSplit(mine, pos);
-    });
+    function place(i, j){                                   // block = order[i..j], all absent
+      var ids = order.slice(i, j + 1), list = bells.filter(function(m){ return ids.indexOf(out[m]) >= 0; });
+      if(!list.length) return;
+      var dn = [], up = [];
+      for(var p = i - 1; p >= 0; p--) if(!isOut[order[p]]) dn.push(order[p]);
+      for(p = j + 1; p < order.length; p++) if(!isOut[order[p]]) up.push(order[p]);
+      var save = {}; bells.forEach(function(m){ save[m] = out[m]; });
+      function restore(){ bells.forEach(function(m){ out[m] = save[m]; }); }
+      // step 1: nearest neighbours only, each keeps their own bells
+      var d = dn.length ? dn[0] : null, u = up.length ? up[0] : null, wd = d ? w(d) : 0, wu = u ? w(u) : 0;
+      var lo = d ? 0 : list.length, hi = u ? list.length : 0;
+      if(!d) lo = 0; if(!u) hi = list.length;
+      var bestC = 1e18, cut = d ? list.length : 0;
+      if(d && u){
+        for(var c = 0; c <= list.length; c++){
+          var tear = (c > 0 && c < list.length) ? cutCost(list[c-1], list[c]) : 0;
+          var a1 = wd + work(list.slice(0, c), wfn), a2 = wu + work(list.slice(c), wfn);
+          var cost = tear * 1.5 + Math.abs(a1 - a2) + Math.max(0, Math.max(a1, a2) - LIMIT) * 10;
+          if(cost < bestC){ bestC = cost; cut = c; }
+        }
+      }
+      list.forEach(function(m, k){ out[m] = k < cut ? d : u; });
+      var worst = Math.max(d ? w(d) : 0, u ? w(u) : 0);
+      if(worst <= LIMIT + 1e-9) return;
+      // step 2: widen one ringer per side at a time and re-split that stretch (order kept, nobody crosses)
+      var best = null, bestWorst = worst, bestState = {}; bells.forEach(function(m){ bestState[m] = out[m]; });
+      for(var k = 2; k <= Math.max(dn.length, up.length); k++){
+        restore();
+        var loI = dn.length ? order.indexOf(dn[Math.min(k, dn.length) - 1]) : i, hiI = up.length ? order.indexOf(up[Math.min(k, up.length) - 1]) : j;
+        var span = order.slice(loI, hiI + 1), seg = span.filter(function(id){ return !isOut[id]; });   // whole stretch, absent ones inside it too
+        var segBells = sorted(bells.filter(function(m){ return span.indexOf(out[m]) >= 0; }));
+        var g = plan(segBells, seg.length, wfn);
+        segBells.forEach(function(m){ out[m] = undefined; });
+        g.forEach(function(grp, q){ grp.forEach(function(m){ out[m] = seg[q]; }); });
+        var ww = Math.max.apply(null, seg.map(w));
+        if(ww < bestWorst - 1e-9){ bestWorst = ww; bells.forEach(function(m){ bestState[m] = out[m]; }); }
+        if(ww <= LIMIT + 1e-9) break;
+      }
+      bells.forEach(function(m){ out[m] = bestState[m]; });
+    }
+    for(var i = 0; i < order.length; i++){
+      if(!isOut[order[i]]) continue;
+      var j = i; while(j + 1 < order.length && isOut[order[j + 1]]) j++;
+      place(i, j); i = j;
+    }
+    var moves = bells.filter(function(m){ return out[m] !== assign[m]; }).map(function(m){ return {bell:m, from:assign[m], to:out[m]}; });
     return {assign:out, moves:moves};
   }
   return {LETTERS:LETTERS, isNat:isNat, octave:octave, name:name, label:label, both:both, letter:letter, parse:parse, unit:unit, range:range, naturals:naturals,
           sorted:sorted, standardCount:standardCount, plan:plan, fromGroups:fromGroups, bellsOf:bellsOf, loads:loads, cover:cover, cutCost:cutCost,
-          weight:weight, work:work, usual:usual, balanced:balanced, home:home};
+          weight:weight, work:work, usual:usual, balanced:balanced, home:home, weigher:weigher, LIMIT:LIMIT};
 })();
 /*CORE-END*/
 </script>
@@ -579,8 +600,11 @@ function example(){
           cur:'p1', out:{}, how:'near', example:true};
 }
 function valid(st){
-  if(!st || st.v !== 2 || !st.set || !Array.isArray(st.ringers) || !st.ringers.length || !Array.isArray(st.pieces) || !st.pieces.length) return false;
-  st.set.lo = Math.max(LO, Math.min(HI, +st.set.lo || 60)); st.set.hi = Math.max(st.set.lo, Math.min(HI, +st.set.hi || 96));
+  if(!st || st.v !== 2 || !st.set || typeof st.set !== 'object' || !Array.isArray(st.ringers) || !st.ringers.length || !Array.isArray(st.pieces) || !st.pieces.length) return false;
+  var lo = Math.round(+st.set.lo), hi = Math.round(+st.set.hi);
+  if(!(lo >= LO && lo <= HI)) lo = 60; if(!(hi >= LO && hi <= HI)) hi = 96;
+  if(!HB.isNat(lo)) lo++; if(!HB.isNat(hi)) hi--; if(hi < lo) hi = lo;
+  st.set = {lo:lo, hi:hi};
   st.ringers = st.ringers.filter(function(r){ return r && typeof r.id === 'string' && /^[A-Za-z0-9]{1,24}$/.test(r.id); }).slice(0, 30);
   st.ringers.forEach(function(r){ r.name = String(r.name || '').slice(0, 40); r.lock = !!r.lock; });
   st.pieces = st.pieces.filter(function(p){ return p && typeof p.id === 'string' && /^[A-Za-z0-9]{1,24}$/.test(p.id) && Array.isArray(p.bells); });
@@ -606,13 +630,14 @@ function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(
 function L(m){ return HB.label(m); }
 function pTitle(p){ return (p.title || '').trim() || (S.example && p.id === 'p1' ? 'Example piece in F' : 'Untitled piece'); }
 function started(){ S.example = false; trackOnce('tool-start'); }
+function wOf(p){ return HB.weigher(S.set.lo, S.set.hi, p.bells); }
 function homeChart(){ return HB.home(S.set.lo, S.set.hi, ids()); }
 function span(bells){ var n = bells.filter(HB.isNat); if(!n.length) n = bells; if(!n.length) return ''; return n.length === 1 ? L(n[0]) : L(n[0]) + '–' + L(n[n.length-1]); }
 function posLabel(id){ var h = homeChart(), mine = HB.bellsOf(h, id); return 'Pos. ' + (rIndex(id) + 1) + (mine.length ? ' · ' + span(mine) : ''); }
 /* This piece's chart: usual or evened-out positions, then the bells moved by hand. */
 function assignOf(p){
   var h = homeChart(), locked = {}; S.ringers.forEach(function(r){ if(r.lock) locked[r.id] = 1; });
-  var a = p.mode === 'even' ? HB.balanced(p.bells, ids(), h, locked) : HB.usual(p.bells, h);
+  var a = p.mode === 'even' ? HB.balanced(p.bells, ids(), h, locked, wOf(p)) : HB.usual(p.bells, h);
   Object.keys(p.over || {}).forEach(function(m){ if(a[m] !== undefined && ringer(p.over[m])) a[m] = p.over[m]; });
   return a;
 }
@@ -620,7 +645,7 @@ function assignOf(p){
 function view(p){
   var a = assignOf(p), out = outIds();
   if(!out.length) return {assign:a, moves:[]};
-  return HB.cover(a, ids(), out, S.how);
+  return HB.cover(a, ids(), out, S.how, wOf(p));
 }
 
 /* ---------- step 1: choir ---------- */
@@ -688,17 +713,15 @@ function renderChart(){
   var p = piece(), v = view(p), a = v.assign, bells = p.bells, moved = {}, out = S.out, html = '';
   v.moves.forEach(function(mv){ moved[mv.bell] = mv.to; });
   var W = 46, x = 0, pos = {};
-  bells.forEach(function(m){ if(HB.isNat(m)){ pos[m] = x; x += W; } });
-  bells.forEach(function(m){   // a sharp/flat sits behind, halfway to the next natural
-    if(HB.isNat(m)) return;
-    var below = null, above = null;
-    bells.forEach(function(n){ if(HB.isNat(n) && n < m) below = n; if(HB.isNat(n) && n > m && above === null) above = n; });
-    pos[m] = below !== null ? pos[below] + W/2 : (above !== null ? pos[above] - W/2 : 0);
-  });
-  var minX = 0; bells.forEach(function(m){ if(pos[m] < minX) minX = pos[m]; });
-  if(minX < 0){ bells.forEach(function(m){ pos[m] -= minX; }); x -= minX; }
+  if(bells.length){   // every natural in the piece's span gets a slot (used or not), so sharps/flats never land on each other
+    var first = bells[0], last = bells[bells.length-1];
+    if(!HB.isNat(first)) first--; if(!HB.isNat(last)) last++;
+    HB.naturals(first, last).forEach(function(n){ pos[n] = x; x += W; });
+    bells.forEach(function(m){ if(!HB.isNat(m)) pos[m] = pos[m - 1] + W/2; });
+  }
   var width = Math.max(x, W) + 8, ZY = 106;
   var nats = bells.filter(HB.isNat), runs = [], usualRuns = [], base = assignOf(p);
+  if(!nats.length) nats = bells;   // a piece of only sharps/flats: zones sit under those
   nats.forEach(function(m){ var o = a[m], last = runs[runs.length-1]; if(last && last.o === o) last.to = m; else runs.push({o:o, from:m, to:m}); });
   nats.forEach(function(m){ var o = base[m]; if(!out[o]) return; var last = usualRuns[usualRuns.length-1]; if(last && last.o === o && last.to === nats[nats.indexOf(m)-1]) last.to = m; else usualRuns.push({o:o, from:m, to:m}); });
   runs.forEach(function(r){
@@ -718,12 +741,11 @@ function renderChart(){
   $('legend').textContent = bells.length ? 'Bass on the left, treble on the right, as the ringers see the table. Sharps and flats sit behind their natural.' + (v.moves.length ? ' Red dot = covering for someone this week.' : '') : 'Add some bells in step 2.';
   var hc = homeChart();
   $('who').innerHTML = S.ringers.map(function(r, i){
-    var mine = HB.bellsOf(a, r.id), n = mine.length, w = '', wk = HB.work(mine);
+    var mine = HB.bellsOf(a, r.id), n = mine.length, w = '', wk = HB.work(mine, wOf(p));
     var head = '<span class="pos">' + esc(posLabel(r.id)) + (r.lock ? ' · 🔒' : '') + '</span><b>' + esc(rName(r.id)) + '</b>';
     if(out[r.id]) return '<div style="--c:' + rColor(r.id) + '">' + head.replace('<b>', '<b class="out">') + 'Out this week</div>';
     if(n === 0) w = 'No bells in this piece.';
-    else if(wk > 3.05) w = n + ' bells, busier than a normal position. Consider moving one, or check the music.';
-    else if(n > 4) w = n + ' bells: more picking up and putting down.';
+    else if(wk > HB.LIMIT + 0.01) w = 'Busier than two usual positions. Consider moving a bell, or check the music.';
     return '<div style="--c:' + rColor(r.id) + '">' + head + '<span class="bells">' + (mine.map(L).join(' ') || '–') + '</span>' + (w ? '<div class="warn">' + esc(w) + '</div>' : '') + '</div>';
   }).join('');
   var std = HB.standardCount(bells), n = S.ringers.length, ex = '';
@@ -737,7 +759,7 @@ function renderChart(){
   $('outBanner').hidden = !outN.length;
   if(outN.length) $('outBanner').innerHTML = '<b>This week\'s table</b>: ' + esc(outN.map(rName).join(', ')) + ' out. Your usual chart is kept; click "Everyone\'s back" in step 4 to return to it.';
   $('chartHint').textContent = outN.length ? 'Showing this week. To change the usual chart, bring everyone back first.' : 'Click any bell to give it to someone else for this piece.';
-  if(bells.length && !S.example) trackOnce('chart-made');
+  if(bells.length && ONCE['tool-start']) trackOnce('chart-made');
 }
 
 /* ---------- step 4: absences ---------- */
@@ -821,11 +843,12 @@ function stamp(){ return '<div class="pa-foot">Printed ' + esc(today()) + ' · M
 function stripHTML(v){
   var a = v.assign, moved = {}; v.moves.forEach(function(mv){ moved[mv.bell] = 1; });
   function bl(m){ var t = '<span>' + L(m) + '</span>'; return moved[m] ? '<u>' + t + '</u>' : t; }
-  return '<div class="pa-strip">' + S.ringers.map(function(r, i){
+  var n = S.ringers.length, cols = n <= 6 ? n : n <= 12 ? Math.ceil(n / 2) : Math.ceil(n / 3);
+  return '<div class="pa-strip" style="--cols:' + Math.max(1, cols) + '">' + S.ringers.map(function(r, i){
     var mine = HB.bellsOf(a, r.id);
     var h = '<h3>' + esc(posLabel(r.id)) + '<i>' + esc(rName(r.id)) + '</i></h3>';
-    if(S.out[r.id]) return '<div class="pa-col out" style="--c:' + rColor(r.id) + ';flex:1 1 0">' + h + '<div class="b">out</div></div>';
-    return '<div class="pa-col" style="--c:' + rColor(r.id) + ';flex:' + Math.max(1, mine.length) + ' 1 0">' + h + '<div class="b">' + (mine.map(bl).join(' ') || '–') + '</div></div>';
+    if(S.out[r.id]) return '<div class="pa-col out" style="--c:' + rColor(r.id) + '">' + h + '<div class="b">out</div></div>';
+    return '<div class="pa-col" style="--c:' + rColor(r.id) + '">' + h + '<div class="b">' + (mine.map(bl).join(' ') || '–') + '</div></div>';
   }).join('') + '</div>';
 }
 function printNow(html, ev){
@@ -934,12 +957,13 @@ function setCount(n){
 document.addEventListener('click', function(e){
   var t = e.target.closest('button, a'); if(!t){ closeMenu(); return; }
   if(t.hasAttribute('data-buy')){   // count first, then leave: a count sent while the page unloads can get lost
-    track('buy-click'); e.preventDefault(); var href = t.href; setTimeout(function(){ location.href = href; }, 250); return;
+    track('buy-click'); if(e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) return;
+    e.preventDefault(); var href = t.href; setTimeout(function(){ location.href = href; }, 250); return;
   }
   if(menuEl && !menuEl.contains(t)) closeMenu();
   if(t.disabled) return;
   var d = t.dataset, p = piece();
-  if(d.set){ var r = d.set.split(',').map(Number); started(); setSet(r[0], r[1]); return; }
+  if(d.set){ var r = d.set.split(',').map(Number), wasEx = S.example; started(); setSet(r[0], r[1], wasEx); return; }
   if(t.id === 'rPlus' || t.id === 'rMinus'){ started(); setCount(S.ringers.length + (t.id === 'rPlus' ? 1 : -1)); renderAll(); return; }
   if(d.del){ if(S.ringers.length <= 1) return; started(); S.ringers = S.ringers.filter(function(r){ return r.id !== d.del; }); cleanOver(); renderAll(); return; }
   if(d.up){ var k = rIndex(d.up); if(k <= 0) return; started(); var tmp = S.ringers[k-1]; S.ringers[k-1] = S.ringers[k]; S.ringers[k] = tmp; renderAll(); return; }
@@ -990,17 +1014,18 @@ document.addEventListener('click', function(e){
     f.onchange = function(){ var rd = new FileReader(); rd.onload = function(){ try{ var o = JSON.parse(rd.result); if(!valid(o)) throw 0; MINE = null; $('shareBar').hidden = true; S = o; cleanOver(); renderAll(); say('Backup restored.'); }catch(e){ say('That file is not a Handbell Chart backup.'); } }; if(f.files[0]) rd.readAsText(f.files[0]); };
     f.click(); return;
   }
-  if(t.id === 'btnKeepShared'){ if(!confirm('Replace your own choir and pieces on this device with this chart? Cancel, then use "Back to mine" and "Save a backup" if you want to keep a copy of yours.')) return; MINE = null; $('shareBar').hidden = true; history.replaceState(null, '', location.pathname + location.search); save(); say('This chart is yours now.'); return; }
+  if(t.id === 'btnKeepShared'){ if(!confirm('Replace your own choir and pieces on this device with this chart? Cancel, then use "Back to mine" and "Save a backup" if you want to keep a copy of yours.')) return; MINE = null;
+    (function(){ var p0 = S.pieces[0], u = HB.usual(p0.bells, homeChart()); Object.keys(p0.over).forEach(function(m){ if(u[m] === p0.over[m]) delete p0.over[m]; }); })(); $('shareBar').hidden = true; history.replaceState(null, '', location.pathname + location.search); save(); say('This chart is yours now.'); return; }
   if(t.id === 'btnBackMine'){ S = MINE; MINE = null; $('shareBar').hidden = true; history.replaceState(null, '', location.pathname + location.search); renderAll(); return; }
 });
-function setSet(lo, hi){
+function setSet(lo, hi, wasEx){
   if(hi < lo){ var x = lo; lo = hi; hi = x; }
   S.set = {lo:lo, hi:hi};
-  S.pieces.forEach(function(p){ if(S.example || (p.bells.length === 0)) p.bells = HB.naturals(lo, hi); });
+  S.pieces.forEach(function(p){ if(wasEx || !p.bells.length){ p.bells = HB.naturals(lo, hi); p.over = {}; } });
   cleanOver(); renderAll(); scrollPickerTo(lo);
 }
 document.addEventListener('change', function(e){
-  if(e.target.id === 'setLo' || e.target.id === 'setHi'){ started(); setSet(+$('setLo').value, +$('setHi').value); }
+  if(e.target.id === 'setLo' || e.target.id === 'setHi'){ var wasEx = S.example; started(); setSet(+$('setLo').value, +$('setHi').value, wasEx); }
 });
 document.addEventListener('keydown', function(e){
   if(!menuEl) return;
@@ -1028,6 +1053,10 @@ if(GC_CODE){ var gs = document.createElement('script'); gs.async = true; gs.src 
   if(via) track('via-' + via);
   if(af) track('aff-' + af);
   if(q.get('bought') === '1' && !isPro()) setTimeout(function(){ $('proSec').scrollIntoView(); $('proKey').focus(); }, 400);
+  if(via === 'selftest' && q.get('fire') === 'all'){   // live check only (media-a 11-24): every event once, plus its .selftest copy
+    ['tool-start','chart-made','chart-used','print-chart','print-cards','print-slip','print-season','absent-used','share','copy-text','open-shared',
+     'pro-view','pro-limit','buy-click','pro-unlocked','pro-gift','pro-notfound','bell-moved','lock','mode-even','mode-usual','cover-near','cover-octave','backup'].forEach(function(n){ track(n); });
+  }
 })();
 window.HBC = {state:function(){ return S; }, view:view};   // for tests
 })();
