@@ -577,13 +577,20 @@ var SRC = (function(){ try{
 }catch(e){ return ''; } })();
 var FUNNEL_EV = {'tool-start':1, 'chart-made':1, 'chart-used':1, 'print-chart':1, 'print-cards':1, 'print-slip':1, 'print-season':1, 'absent-used':1, 'share':1, 'copy-text':1,
                  'open-shared':1, 'pro-view':1, 'pro-limit':1, 'buy-click':1, 'pro-unlocked':1, 'pro-gift':1};
-var ONCE = {};
-function track(name, tries){
+var ONCE = {}, QUEUE = [], SENDING = false;
+/* Hits leave one at a time, 350 ms apart: 11-24 live test, ~40 hits fired in one tick reached GoatCounter only half the time. */
+function track(name){
   try{
-    if(!tries && SRC && FUNNEL_EV[name]) track(name + '.' + SRC);
-    if(window.goatcounter && window.goatcounter.count) window.goatcounter.count({path: name, title: name, event: true});
-    else if((tries||0) < 20) setTimeout(function(){ track(name, (tries||0) + 1); }, 500);   // count.js loads async
+    if(SRC && FUNNEL_EV[name]) QUEUE.push(name + '.' + SRC);
+    QUEUE.push(name); drain();
   }catch(e){}
+}
+function drain(){
+  if(SENDING || !QUEUE.length) return;
+  if(!(window.goatcounter && window.goatcounter.count)){ SENDING = true; setTimeout(function(){ SENDING = false; drain(); }, 400); return; }   // count.js loads async
+  var n = QUEUE.shift(); SENDING = true;
+  try{ window.goatcounter.count({path: n, title: n, event: true}); }catch(e){}
+  setTimeout(function(){ SENDING = false; drain(); }, 350);
 }
 function trackOnce(name){ if(ONCE[name]) return; ONCE[name] = 1; track(name); }
 
@@ -958,7 +965,8 @@ document.addEventListener('click', function(e){
   var t = e.target.closest('button, a'); if(!t){ closeMenu(); return; }
   if(t.hasAttribute('data-buy')){   // count first, then leave: a count sent while the page unloads can get lost
     track('buy-click'); if(e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) return;
-    e.preventDefault(); var href = t.href; setTimeout(function(){ location.href = href; }, 250); return;
+    e.preventDefault(); var href = t.href, t0 = Date.now();
+    (function go(){ if(QUEUE.length && Date.now() - t0 < 2000) return setTimeout(go, 100); setTimeout(function(){ location.href = href; }, 300); })(); return;
   }
   if(menuEl && !menuEl.contains(t)) closeMenu();
   if(t.disabled) return;
@@ -1053,12 +1061,12 @@ if(GC_CODE){ var gs = document.createElement('script'); gs.async = true; gs.src 
   if(via) track('via-' + via);
   if(af) track('aff-' + af);
   if(q.get('bought') === '1' && !isPro()) setTimeout(function(){ $('proSec').scrollIntoView(); $('proKey').focus(); }, 400);
-  if(via === 'selftest' && q.get('fire') === 'all'){   // live check only (media-a 11-24): every event once, plus its .selftest copy
+  if(via.indexOf('selftest') === 0 && q.get('fire') === 'all'){   // live check only (media-a 11-24): every event once, plus its .selftest copy
     ['tool-start','chart-made','chart-used','print-chart','print-cards','print-slip','print-season','absent-used','share','copy-text','open-shared',
      'pro-view','pro-limit','buy-click','pro-unlocked','pro-gift','pro-notfound','bell-moved','lock','mode-even','mode-usual','cover-near','cover-octave','backup'].forEach(function(n){ track(n); });
   }
 })();
-window.HBC = {state:function(){ return S; }, view:view};   // for tests
+window.HBC = {state:function(){ return S; }, view:view, pending:function(){ return QUEUE.length + (SENDING ? 1 : 0); }};   // for tests
 })();
 </script>
 </body>
