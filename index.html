@@ -577,7 +577,7 @@ var SRC = (function(){ try{
 }catch(e){ return ''; } })();
 var FUNNEL_EV = {'tool-start':1, 'chart-made':1, 'chart-used':1, 'print-chart':1, 'print-cards':1, 'print-slip':1, 'print-season':1, 'absent-used':1, 'share':1, 'copy-text':1,
                  'open-shared':1, 'pro-view':1, 'pro-limit':1, 'buy-click':1, 'pro-unlocked':1, 'pro-gift':1};
-var ONCE = {}, QUEUE = [], SENDING = false;
+var ONCE = {}, QUEUE = [], SENDING = false, GC_READY = 0;
 /* Hits leave one at a time, 700 ms apart. GoatCounter's /count allows 4 requests/second per IP+UA (source: cmd/goatcounter/serve.go
    -ratelimit default count:4/1); 11-24 live tests lost half the hits fired at once, and 3 of 17 at 350 ms spacing. */
 function track(name){
@@ -589,6 +589,8 @@ function track(name){
 function drain(){
   if(SENDING || !QUEUE.length) return;
   if(!(window.goatcounter && window.goatcounter.count)){ SENDING = true; setTimeout(function(){ SENDING = false; drain(); }, 400); return; }   // count.js loads async
+  if(!GC_READY){ GC_READY = Date.now(); }
+  if(Date.now() - GC_READY < 1500){ SENDING = true; setTimeout(function(){ SENDING = false; drain(); }, 1500 - (Date.now() - GC_READY)); return; }   // count.js sends its own pageview first; 11-24 live tests lost the hits right after it
   var n = QUEUE.shift(); SENDING = true;
   try{ window.goatcounter.count({path: n, title: n, event: true}); }catch(e){}
   setTimeout(function(){ SENDING = false; drain(); }, 700);
