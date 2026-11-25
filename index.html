@@ -848,7 +848,7 @@ function unlock(){
 }
 
 /* ---------- printing ---------- */
-function today(){ try{ return new Date().toLocaleDateString(undefined, {year:'numeric', month:'long', day:'numeric'}); }catch(e){ return ''; } }
+function today(){ try{ return new Date().toLocaleDateString('en-US', {year:'numeric', month:'long', day:'numeric'}); }catch(e){ return ''; } }
 function stamp(){ return '<div class="pa-foot">Printed ' + esc(today()) + ' · Made with Handbell Chart, free at samsbench.com/handbell-chart</div>'; }
 function stripHTML(v){
   var a = v.assign, moved = {}; v.moves.forEach(function(mv){ moved[mv.bell] = 1; });
